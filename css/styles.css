@@ -1,3 +1,12 @@
+/* Reset e variáveis */
+:root {
+    --primary-color: #3c39e6;
+    --secondary-color: #2ecc71;
+    --text-color: #333;
+    --bg-color: #f5f5f5;
+    --card-bg: #ffffff;
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -7,27 +16,24 @@
 body {
     font-family: 'Inter', sans-serif;
     line-height: 1.6;
-    color: #1a1a1a;
-    overflow-x: hidden;
+    color: var(--text-color);
+    background-color: var(--bg-color);
 }
 
-/* Navigation */
+/* Navegação */
 .nav {
+    background-color: var(--card-bg);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     position: fixed;
+    width: 100%;
     top: 0;
-    left: 0;
-    right: 0;
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(10px);
     z-index: 1000;
-    padding: 1rem 0;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
 
 .nav-container {
     max-width: 1200px;
     margin: 0 auto;
-    padding: 0 2rem;
+    padding: 1rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -36,157 +42,475 @@ body {
 .logo {
     font-size: 1.5rem;
     font-weight: 700;
-    color: #7000ff;
+    color: var(--primary-color);
     text-decoration: none;
-    transition: color 0.3s ease;
-}
-
-.logo:hover {
-    color: #5600c2;
 }
 
 .nav-links {
     display: flex;
-    gap: 2rem;
     list-style: none;
+    gap: 2rem;
 }
 
 .nav-links a {
-    color: #333;
     text-decoration: none;
+    color: var(--text-color);
     font-weight: 500;
-    transition: color 0.3s ease;
+    transition: color 0.3s;
 }
 
 .nav-links a:hover {
-    color: #7000ff;
+    color: var(--primary-color);
 }
 
 /* Hero Section */
 .hero {
-    min-height: 100vh;
-    background: linear-gradient(135deg, #7000ff 0%, #9f45ff 100%);
+    background: linear-gradient(135deg, var(--primary-color), #6c5ce7);
     color: white;
-    display: flex;
-    align-items: center;
-    padding: 6rem 2rem;
+    padding: 8rem 2rem 4rem;
+    text-align: center;
 }
 
 .hero-content {
     max-width: 800px;
     margin: 0 auto;
-    text-align: center;
 }
 
 .hero-title {
-    font-size: 3.5rem;
-    font-weight: 700;
+    font-size: 3rem;
     margin-bottom: 1rem;
-    line-height: 1.2;
 }
 
 .hero-subtitle {
     font-size: 1.5rem;
-    font-weight: 500;
     margin-bottom: 1.5rem;
-    opacity: 0.9;
+    color: rgba(255,255,255,0.9);
 }
 
 .hero-description {
     font-size: 1.1rem;
     margin-bottom: 2rem;
-    opacity: 0.8;
 }
 
 .cta-button {
     display: inline-block;
-    background: white;
-    color: #7000ff;
     padding: 1rem 2rem;
+    background-color: var(--secondary-color);
+    color: white;
+    text-decoration: none;
     border-radius: 50px;
     font-weight: 600;
-    text-decoration: none;
-    transition: transform 0.3s ease;
+    transition: transform 0.3s;
 }
 
 .cta-button:hover {
     transform: translateY(-2px);
 }
 
-/* Section Styles */
+/* Seções */
 .section {
-    padding: 6rem 2rem;
-}
-
-.section-title {
-    text-align: center;
-    font-size: 2.5rem;
-    margin-bottom: 3rem;
-    color: #1a1a1a;
-}
-
-/* Features Grid */
-.features-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 2rem;
+    padding: 4rem 2rem;
     max-width: 1200px;
     margin: 0 auto;
 }
 
-.feature-card {
-    background: white;
-    padding: 2rem;
-    border-radius: 20px;
+.section-title {
     text-align: center;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-    transition: transform 0.3s ease;
+    font-size: 2rem;
+    margin-bottom: 3rem;
+    color: var(--primary-color);
 }
 
-.feature-card:hover {
-    transform: translateY(-5px);
+/* Cards de Features */
+.features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 2rem;
+    margin-top: 2rem;
+}
+
+.feature-card {
+    background: var(--card-bg);
+    padding: 2rem;
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    text-align: center;
 }
 
 .feature-icon {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+}
+
+/* Cards de Preço */
+.pricing-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 2rem;
+    margin-top: 2rem;
+}
+
+.price-card {
+    background: var(--card-bg);
+    padding: 2rem;
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    text-align: center;
+    position: relative;
+    transition: transform 0.3s;
+}
+
+.price-card:hover {
+    transform: translateY(-5px);
+}
+
+.price-card.featured {
+    border: 2px solid var(--primary-color);
+}
+
+.price {
     font-size: 2.5rem;
-    margin-bottom: 1rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    margin: 1rem 0;
 }
 
-.feature-card h3 {
-    font-size: 1.25rem;
-    margin-bottom: 1rem;
-    color: #1a1a1a;
-}
-
-.feature-card p {
+.price-month {
     color: #666;
-    font-size: 0.9rem;
+    margin-bottom: 1.5rem;
+}
+
+.price-features {
+    list-style: none;
+    margin: 1.5rem 0;
+}
+
+.price-features li {
+    margin: 0.5rem 0;
+}
+
+.discount-tag {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: var(--secondary-color);
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+/* Tabela de Preços */
+.pricing-table {
+    overflow-x: auto;
+    margin: 2rem 0;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border-radius: 10px;
+}
+
+.pricing-table table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--card-bg);
+}
+
+.pricing-table th,
+.pricing-table td {
+    padding: 1rem;
+    text-align: center;
+    border-bottom: 1px solid #eee;
+}
+
+.pricing-table th {
+    background: var(--primary-color);
+    color: white;
+    font-weight: 600;
+}
+
+.pricing-table tr:hover {
+    background: #f8f9fa;
+}
+
+.pricing-table .featured-row {
+    background: rgba(46, 204, 113, 0.1);
+    border-left: 4px solid var(--secondary-color);
+}
+
+.pricing-info {
+    margin-top: 2rem;
+    padding: 1rem;
+    background: var(--card-bg);
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.pricing-info p {
+    margin: 0.5rem 0;
+    text-align: justify;
+}
+
+/* Regras Container */
+.rules-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+    margin-bottom: 3rem;
+}
+
+.rules-section {
+    background: var(--card-bg);
+    padding: 2rem;
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.rules-section h3 {
+    color: var(--primary-color);
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.check-list li,
+.x-list li,
+.conflict-list li {
+    margin: 1rem 0;
+    padding-left: 2rem;
+    position: relative;
+    list-style: none;
+    text-align: justify;
+}
+
+.check-list li::before {
+    content: "✅";
+    position: absolute;
+    left: 0;
+}
+
+.conflict-list li::before {
+    content: "⚠️";
+    position: absolute;
+    left: 0;
+}
+
+.x-list li::before {
+    content: "❌";
+    position: absolute;
+    left: 0;
+}
+
+/* Tabela de Consequências */
+.consequences-table {
+    margin-top: 3rem;
+    background: var(--card-bg);
+    padding: 2rem;
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.consequences-table h3 {
+    color: var(--primary-color);
+    margin-bottom: 1.5rem;
+}
+
+.consequences-table table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.consequences-table th,
+.consequences-table td {
+    padding: 1rem;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+}
+
+.consequences-table th {
+    background: var(--primary-color);
+    color: white;
+    font-weight: 600;
+}
+
+.consequences-table tr:hover {
+    background: #f8f9fa;
+}
+
+/* Política de Pagamento */
+.payment-policy {
+    background: var(--card-bg);
+    padding: 2rem;
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-bottom: 2rem;
+}
+
+.payment-methods {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 2rem;
+    margin: 2rem 0;
+}
+
+.payment-method-card {
+    background: var(--bg-color);
+    padding: 1.5rem;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.payment-method-card h4 {
+    color: var(--primary-color);
+    margin-bottom: 1rem;
+}
+
+.payment-deadline {
+    background: rgba(46, 204, 113, 0.1);
+    border-left: 4px solid var(--secondary-color);
+    padding: 1rem;
+    margin: 1rem 0;
+}
+
+.payment-deadline li {
+    list-style: none;
+    margin: 0.5rem 0;
+}
+
+.payment-deadline h4 {
+    color: var(--secondary-color);
+    margin-bottom: 0.5rem;
+}
+
+.payment-warning {
+    background: rgba(231, 76, 60, 0.1);
+    border-left: 4px solid #e74c3c;
+    padding: 1rem;
+    margin: 1rem 0;
+}
+
+.payment-warning li {
+    list-style: none;
+    margin: 0.5rem 0;
+}
+/* Contato */
+.contact-section {
+    background: var(--card-bg);
+    padding: 3rem 2rem;
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    text-align: center;
+}
+
+.contact-methods {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 2rem;
+    margin: 2rem auto;
+    max-width: 800px;
+}
+
+.contact-card {
+    background: var(--bg-color);
+    padding: 2rem;
+    border-radius: 8px;
+    transition: transform 0.3s;
+}
+
+a {
+    text-decoration: none;
+    color: inherit;
+}
+
+.contact-card:hover {
+    transform: translateY(-5px);
+}
+
+.contact-card h4 {
+    color: var(--primary-color);
+    margin-bottom: 1rem;
+}
+
+.contact-platform {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.contact-value {
+    color: var(--primary-color);
+    font-weight: 500;
+    margin-top: 0.5rem;
+}
+
+/* Ícones para métodos de pagamento e contato */
+.icon-container {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+    color: var(--primary-color);
 }
 
 /* Footer */
 .footer {
-    background: #1a1a1a;
+    background: var(--primary-color);
     color: white;
     text-align: center;
     padding: 2rem;
-    font-size: 0.9rem;
+    margin-top: 4rem;
 }
 
-/* Responsive Design */
+.update-info {
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+    opacity: 0.8;
+}
+
+/* Responsividade */
 @media (max-width: 768px) {
+    .nav-container {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
     .nav-links {
-        display: none;
+        flex-direction: column;
+        text-align: center;
+        gap: 1rem;
     }
 
     .hero-title {
-        font-size: 2.5rem;
-    }
-
-    .hero-subtitle {
-        font-size: 1.25rem;
-    }
-
-    .section-title {
         font-size: 2rem;
+    }
+
+    .contact-methods {
+        flex-direction: column;
+    }
+
+    .pricing-table,
+    .consequences-table {
+        margin: 1rem -1rem;
+        border-radius: 0;
+    }
+
+    .pricing-table th,
+    .pricing-table td,
+    .consequences-table th,
+    .consequences-table td {
+        padding: 0.75rem;
+        font-size: 0.9rem;
+    }
+
+    .rules-container {
+        grid-template-columns: 1fr;
+    }
+
+    .payment-methods,
+    .contact-methods {
+        grid-template-columns: 1fr;
+    }
+
+    .payment-method-card,
+    .contact-card {
+        padding: 1.5rem;
     }
 }
