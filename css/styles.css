@@ -1,10 +1,36 @@
 /* Reset e variáveis */
 :root {
+    /* Cores do tema claro */
     --primary-color: #3c39e6;
     --secondary-color: #2ecc71;
     --text-color: #333;
     --bg-color: #f5f5f5;
     --card-bg: #ffffff;
+    --card-inner-bg: #ffffff;
+    --nav-bg: rgba(255, 255, 255, 0.95);
+    --hero-overlay: rgba(0, 0, 0, 0.5);
+    --table-hover: #f8f9fa;
+    --border-color: #e0e0e0;
+    --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    --card-hover-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+}
+
+/* Modo Noturno */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --primary-color: #6c63ff;
+        --secondary-color: #00b894;
+        --text-color: #e1e1e1;
+        --bg-color: #121212;
+        --card-bg: #1e1e1e;
+        --card-inner-bg: #2a2a2a;
+        --nav-bg: rgba(30, 30, 30, 0.95);
+        --hero-overlay: rgba(0, 0, 0, 0.6);
+        --table-hover: #2d2d2d;
+        --border-color: #333;
+        --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        --card-hover-shadow: 0 8px 15px rgba(0, 0, 0, 0.4);
+    }
 }
 
 * {
@@ -22,8 +48,9 @@ body {
 
 /* Navegação */
 .nav {
-    background-color: var(--card-bg);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    background-color: var(--nav-bg);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
     position: fixed;
     width: 100%;
     top: 0;
@@ -65,13 +92,36 @@ body {
 
 /* Hero Section */
 .hero {
-    background: linear-gradient(135deg, var(--primary-color), #6c5ce7);
+    position: relative;
+    background: linear-gradient(var(--hero-overlay), var(--hero-overlay)), 
+                url('../img/sora_widescreen.png');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
     color: white;
-    padding: 8rem 2rem 4rem;
+    padding: 23rem 2rem 4rem;
     text-align: center;
+    position: relative;
+}
+
+.hero::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(
+        135deg,
+        rgba(60, 57, 230, 0.8),
+        rgba(108, 92, 231, 0.8)
+    );
+    z-index: 1;
 }
 
 .hero-content {
+    position: relative;
+    z-index: 2;
     max-width: 800px;
     margin: 0 auto;
 }
@@ -133,7 +183,8 @@ body {
     background: var(--card-bg);
     padding: 2rem;
     border-radius: 10px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border: 1px solid var(--border-color);
+    box-shadow: var(--card-shadow);
     text-align: center;
 }
 
@@ -154,7 +205,8 @@ body {
     background: var(--card-bg);
     padding: 2rem;
     border-radius: 10px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border: 1px solid var(--border-color);
+    box-shadow: var(--card-shadow);
     text-align: center;
     position: relative;
     transition: transform 0.3s;
@@ -172,6 +224,7 @@ body {
     font-size: 2.5rem;
     font-weight: 700;
     color: var(--primary-color);
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.1);
     margin: 1rem 0;
 }
 
@@ -212,7 +265,8 @@ body {
 .pricing-table table {
     width: 100%;
     border-collapse: collapse;
-    background: var(--card-bg);
+    background: var(--card-inner-bg);
+    border: 1px solid var(--border-color);
 }
 
 .pricing-table th,
@@ -229,12 +283,13 @@ body {
 }
 
 .pricing-table tr:hover {
-    background: #f8f9fa;
+    background: var(--table-hover);
 }
 
 .pricing-table .featured-row {
-    background: rgba(46, 204, 113, 0.1);
+    background: rgba(46, 204, 113, 0.15);
     border-left: 4px solid var(--secondary-color);
+    position: relative;
 }
 
 .pricing-info {
@@ -262,7 +317,8 @@ body {
     background: var(--card-bg);
     padding: 2rem;
     border-radius: 10px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border: 1px solid var(--border-color);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 .rules-section h3 {
@@ -318,6 +374,8 @@ body {
 .consequences-table table {
     width: 100%;
     border-collapse: collapse;
+    background: var(--card-inner-bg);
+    border: 1px solid var(--border-color);
 }
 
 .consequences-table th,
@@ -334,7 +392,7 @@ body {
 }
 
 .consequences-table tr:hover {
-    background: #f8f9fa;
+    background: var(--table-hover);
 }
 
 /* Política de Pagamento */
@@ -354,10 +412,11 @@ body {
 }
 
 .payment-method-card {
-    background: var(--bg-color);
+    background: var(--card-inner-bg);
     padding: 1.5rem;
     border-radius: 8px;
     text-align: center;
+    border: 1px solid var(--border-color);
 }
 
 .payment-method-card h4 {
@@ -366,10 +425,11 @@ body {
 }
 
 .payment-deadline {
-    background: rgba(46, 204, 113, 0.1);
+    background: var(--card-inner-bg);
     border-left: 4px solid var(--secondary-color);
     padding: 1rem;
     margin: 1rem 0;
+    box-shadow: var(--card-shadow);
 }
 
 .payment-deadline li {
@@ -383,10 +443,11 @@ body {
 }
 
 .payment-warning {
-    background: rgba(231, 76, 60, 0.1);
+    background: var(--card-inner-bg);
     border-left: 4px solid #e74c3c;
     padding: 1rem;
     margin: 1rem 0;
+    box-shadow: var(--card-shadow);
 }
 
 .payment-warning li {
@@ -411,10 +472,11 @@ body {
 }
 
 .contact-card {
-    background: var(--bg-color);
+    background: var(--card-inner-bg);
     padding: 2rem;
     border-radius: 8px;
-    transition: transform 0.3s;
+    transition: transform 0.3s, box-shadow 0.3s;
+    border: 1px solid var(--border-color);
 }
 
 a {
@@ -424,6 +486,7 @@ a {
 
 .contact-card:hover {
     transform: translateY(-5px);
+    box-shadow: var(--card-hover-shadow);
 }
 
 .contact-card h4 {
@@ -448,15 +511,26 @@ a {
     font-size: 2rem;
     margin-bottom: 1rem;
     color: var(--primary-color);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 /* Footer */
 .footer {
-    background: var(--primary-color);
+    background: linear-gradient(135deg, var(--primary-color), #6c5ce7);
+    position: relative;
+    padding: 2rem;
     color: white;
     text-align: center;
-    padding: 2rem;
-    margin-top: 4rem;
+}
+
+.footer::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent);
 }
 
 .update-info {
