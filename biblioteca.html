@@ -775,8 +775,8 @@
             card.onclick = () => openSteamStore(game.app_id);
 
             const imageUrl = game.cover_url || `https://cdn.cloudflare.steamstatic.com/steam/apps/${game.app_id}/header.jpg`;
-            const developer = game.developer || 'Desenvolvedor desconhecido';
-            const year = game.release_year || '';
+            // const developer = game.developer || 'Desenvolvedor desconhecido';
+            // const year = game.release_year || '';
 
             card.innerHTML = `
                 <div class="game-image">
@@ -789,17 +789,17 @@
                 </div>
                 <div class="game-info">
                     <h3 class="game-title">${game.name}</h3>
-                    <div class="game-details">
-                        <span class="game-developer">${developer}</span>
-                        ${year ? `<span class="game-year">${year}</span>` : ''}
-                    </div>
-                    <div class="game-footer">
-                        <span class="game-price">R$ --,--</span>
-                        <span class="game-copies">
-                            -- disponível
-                            <span class="availability-indicator"></span>
-                        </span>
-                    </div>
+                    // <div class="game-details">
+                    //     <span class="game-developer">${developer}</span>
+                    //     ${year ? `<span class="game-year">${year}</span>` : ''}
+                    // </div>
+                    // <div class="game-footer">
+                    //     <span class="game-price">R$ --,--</span>
+                    //     <span class="game-copies">
+                    //         -- disponível
+                    //         <span class="availability-indicator"></span>
+                    //     </span>
+                    // </div>
                 </div>
             `;
 
