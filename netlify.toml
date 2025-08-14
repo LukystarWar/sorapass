@@ -1,9 +1,11 @@
 [build.environment]
 NODE_VERSION = "20"
+AWS_LAMBDA_JS_RUNTIME = "nodejs20.x"
 
 [functions]
 node_bundler = "esbuild"
-external_node_modules = ["@neondatabase/serverless", "@netlify/blobs"]
+external_node_modules = ["@neondatabase/serverless"]
+included_files = ["node_modules/@netlify/blobs/**/*"]
 
 # Schedule function
 [functions."refresh-library"]

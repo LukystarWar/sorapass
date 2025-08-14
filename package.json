@@ -1,7 +1,23 @@
 {
+  "name": "sora-pass",
+  "version": "1.0.0",
+  "description": "Sora's Pass - Steam Family Library",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "build": "echo 'Build completed'",
+    "dev": "netlify dev"
+  },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.1",
     "@netlify/blobs": "^10.0.8",
     "@netlify/functions": "^4.2.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "@types/node": "^20.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }
