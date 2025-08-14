@@ -1,239 +1,173 @@
 import type { Handler, HandlerResponse } from "@netlify/functions";
 import { getSql } from "./_db";
 
-type SteamOwnedGame = {
+type SteamGame = {
   appid: number;
   name?: string;
-  img_icon_url?: string;
-  img_logo_url?: string;
-  playtime_forever?: number;
-};
-
-type Game = {
-  app_id: number;
-  name: string;
-  cover_url?: string | null;
-  developer?: string | null;
-  publisher?: string | null;
-  release_year?: number | null;
-  genres?: string[];
 };
 
 const API = "https://api.steampowered.com";
-const DETAILS = "https://store.steampowered.com/api/appdetails";
 const headerImg = (appid: number) =>
   `https://cdn.cloudflare.steamstatic.com/steam/apps/${appid}/header.jpg`;
 
-// Função para tentar usar Blobs (opcional)
-async function tryCreateSnapshot(data: Game[]) {
-  try {
-    const { getStore } = await import("@netlify/blobs");
-    const store = getStore("games");
-    await store.setJSON("all.json", data);
-    return true;
-  } catch (error) {
-    console.warn("⚠️ Blobs não disponível, usando apenas DB:", error);
-    return false;
-  }
-}
-
-export const handler: Handler = async (event): Promise<HandlerResponse> => {
-  console.log("🚀 Iniciando refresh da biblioteca...");
+export const handler: Handler = async (): Promise<HandlerResponse> => {
+  console.log("🚀 Sync diferencial iniciado...");
   
   try {
-    const key = process.env.STEAM_API_KEY || "";
-    const idsCsv = process.env.STEAM_IDS || "";
+    const key = process.env.STEAM_API_KEY;
+    const idsCsv = process.env.STEAM_IDS;
     
     if (!key || !idsCsv) {
       return {
         statusCode: 500,
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ error: "Missing envs (STEAM_API_KEY / STEAM_IDS)" })
+        body: JSON.stringify({ error: "Missing STEAM_API_KEY or STEAM_IDS" })
       };
     }
 
-    const ENRICH = (process.env.ENRICH_DETAILS ?? "true") !== "false";
-    console.log(`📚 Modo enriquecimento: ${ENRICH ? "ATIVO" : "DESABILITADO"}`);
-
     const sql = getSql();
-    const steamIds = idsCsv.split(",").map((s) => s.trim()).filter(Boolean);
-    const map = new Map<number, SteamOwnedGame>();
+    const steamIds = idsCsv.split(",").map(s => s.trim()).filter(Boolean);
 
-    // 1) Consolidar jogos de todas as contas Steam
-    console.log(`🔍 Buscando jogos de ${steamIds.length} contas Steam...`);
-    
-    for (const sid of steamIds) {
-      const url = `${API}/IPlayerService/GetOwnedGames/v0001/?key=${encodeURIComponent(
-        key
-      )}&steamid=${encodeURIComponent(sid)}&include_appinfo=1&include_played_free_games=1&format=json`;
+    // 1) Buscar todos os app_ids atuais no banco
+    console.log("📚 Buscando app_ids atuais no banco...");
+    const currentGamesResult = await sql`
+      SELECT app_id FROM games ORDER BY app_id
+    `;
+    const currentAppIds = new Set<number>(currentGamesResult.map(g => Number(g.app_id)));
+    console.log(`💾 Banco atual: ${currentAppIds.size} jogos`);
 
+    // 2) Buscar todos os app_ids das contas Steam
+    console.log("🎮 Buscando app_ids de todas as contas Steam...");
+    const steamAppIds = new Set<number>();
+    const newGames: SteamGame[] = [];
+
+    for (const steamId of steamIds) {
+      console.log(`📋 Processando Steam ID: ${steamId}`);
+      
       try {
+        const url = `${API}/IPlayerService/GetOwnedGames/v0001/?key=${key}&steamid=${steamId}&include_appinfo=1&format=json`;
         const res = await fetch(url);
+        
         if (!res.ok) {
-          console.warn(`⚠️ Erro ${res.status} para Steam ID ${sid}`);
+          console.warn(`⚠️ Erro ${res.status} para ${steamId}`);
           continue;
         }
-        
+
         const json = await res.json();
-        const games: SteamOwnedGame[] = json?.response?.games ?? [];
-        console.log(`✅ ${games.length} jogos encontrados para ${sid}`);
-        
-        for (const g of games) {
-          if (!map.has(g.appid)) {
-            map.set(g.appid, g);
+        const games: SteamGame[] = json?.response?.games || [];
+        console.log(`✅ ${games.length} jogos encontrados para ${steamId}`);
+
+        for (const game of games) {
+          steamAppIds.add(game.appid);
+          
+          // Se é novo, adiciona na lista para inserção
+          if (!currentAppIds.has(game.appid)) {
+            newGames.push(game);
           }
         }
+
       } catch (error) {
-        console.error(`❌ Erro ao processar ${sid}:`, error);
+        console.error(`❌ Erro ao processar ${steamId}:`, error);
       }
     }
 
-    const owned = Array.from(map.values());
-    console.log(`🎮 Total de jogos únicos: ${owned.length}`);
+    console.log(`🎮 Steam atual: ${steamAppIds.size} jogos únicos`);
+    console.log(`🆕 Jogos novos: ${newGames.length}`);
 
-    const enriched: Game[] = [];
-
-    // 2) Enriquecimento de dados
-    if (!ENRICH) {
-      // Modo rápido
-      console.log("⚡ Modo rápido: apenas dados básicos");
-      for (const g of owned) {
-        enriched.push({
-          app_id: g.appid,
-          name: g.name || `App ${g.appid}`,
-          cover_url: headerImg(g.appid),
-          developer: null,
-          publisher: null,
-          release_year: null,
-          genres: [],
-        });
-      }
-    } else {
-      // Modo completo - com rate limiting para 1k+ jogos
-      console.log("🔍 Modo completo: enriquecendo dados...");
-      const BATCH = 8; // Reduzido para evitar rate limit
-      
-      for (let i = 0; i < owned.length; i += BATCH) {
-        const batch = owned.slice(i, i + BATCH);
-        console.log(`📦 Lote ${Math.floor(i/BATCH) + 1}/${Math.ceil(owned.length/BATCH)} (${batch.length} jogos)`);
-        
-        await Promise.all(
-          batch.map(async (g) => {
-            const appid = g.appid;
-            let name = g.name || `App ${appid}`;
-            let cover_url: string | null = headerImg(appid);
-            let developer: string | null = null;
-            let publisher: string | null = null;
-            let release_year: number | null = null;
-            let genres: string[] = [];
-
-            try {
-              const r = await fetch(`${DETAILS}?appids=${appid}`);
-              if (r.ok) {
-                const dj = await r.json();
-                const entry = dj?.[appid];
-                if (entry?.success && entry?.data) {
-                  const d = entry.data;
-                  name = d.name || name;
-                  cover_url = d.header_image || cover_url;
-                  
-                  if (Array.isArray(d.developers) && d.developers.length)
-                    developer = d.developers[0] || null;
-                  if (Array.isArray(d.publishers) && d.publishers.length)
-                    publisher = d.publishers[0] || null;
-                    
-                  if (d.release_date?.date) {
-                    const year = parseInt(
-                      (d.release_date.date.match(/\b(19|20)\d{2}\b/) || [])[0]
-                    );
-                    if (!Number.isNaN(year)) release_year = year;
-                  }
-                  
-                  if (Array.isArray(d.genres))
-                    genres = d.genres.map((x: any) => x.description).filter(Boolean);
-                }
-              }
-            } catch (error) {
-              // Continua com dados básicos
-            }
-
-            enriched.push({
-              app_id: appid,
-              name,
-              cover_url,
-              developer,
-              publisher,
-              release_year,
-              genres,
-            });
-          })
-        );
-        
-        // Pausa entre lotes para respeitar rate limits da Steam
-        if (i + BATCH < owned.length) {
-          await new Promise((r) => setTimeout(r, 600));
-        }
+    // 3) Identificar jogos removidos (estão no banco mas não no Steam)
+    const removedAppIds: number[] = [];
+    for (const appId of currentAppIds) {
+      if (!steamAppIds.has(appId)) {
+        removedAppIds.push(appId);
       }
     }
+    console.log(`🗑️ Jogos removidos: ${removedAppIds.length}`);
 
-    // 3) Salvar no banco de dados
-    console.log("💾 Salvando no banco de dados...");
-    
+    // 4) Aplicar mudanças no banco
+    let inserted = 0;
+    let removed = 0;
+
     await sql`BEGIN`;
-    
-    for (const g of enriched) {
-      await sql/* sql */`
-        INSERT INTO games (app_id, name, cover_url, developer, publisher, release_year, last_seen_at, updated_at)
-        VALUES (${g.app_id}, ${g.name}, ${g.cover_url ?? null}, ${g.developer ?? null}, ${g.publisher ?? null}, ${g.release_year ?? null}, NOW(), NOW())
-        ON CONFLICT (app_id) DO UPDATE
-        SET name = EXCLUDED.name,
-            cover_url = EXCLUDED.cover_url,
-            developer = EXCLUDED.developer,
-            publisher = EXCLUDED.publisher,
-            release_year = EXCLUDED.release_year,
-            last_seen_at = NOW(),
-            updated_at = NOW();
-      `;
 
-      // Salvar gêneros se disponíveis
-      if (g.genres?.length) {
-        for (const genreName of g.genres) {
+    try {
+      // Inserir jogos novos
+      if (newGames.length > 0) {
+        console.log("📥 Inserindo jogos novos...");
+        
+        for (const game of newGames) {
           try {
-            const rows = await sql/* sql */`
-              INSERT INTO genres (name) VALUES (${genreName})
-              ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name
-              RETURNING id;
+            await sql`
+              INSERT INTO games (app_id, name, cover_url, last_seen_at, updated_at)
+              VALUES (${game.appid}, ${game.name || `App ${game.appid}`}, ${headerImg(game.appid)}, NOW(), NOW())
             `;
-            const genreId = rows[0].id as number;
-            
-            await sql/* sql */`
-              INSERT INTO game_genres (app_id, genre_id)
-              VALUES (${g.app_id}, ${genreId})
-              ON CONFLICT (app_id, genre_id) DO NOTHING;
-            `;
-          } catch (error) {
-            console.warn(`⚠️ Erro ao salvar gênero ${genreName}:`, error);
+            inserted++;
+          } catch (err) {
+            console.warn(`Erro ao inserir ${game.appid}:`, err);
           }
         }
       }
-    }
-    
-    await sql`COMMIT`;
-    console.log("✅ Dados salvos no banco");
 
-    // 4) Tentar criar snapshot (opcional)
-    const snapshotCreated = await tryCreateSnapshot(enriched);
+      // Remover jogos que não estão mais disponíveis
+      if (removedAppIds.length > 0) {
+        console.log("🗑️ Removendo jogos não disponíveis...");
+        
+        for (const appId of removedAppIds) {
+          try {
+            await sql`DELETE FROM games WHERE app_id = ${appId}`;
+            removed++;
+          } catch (err) {
+            console.warn(`Erro ao remover ${appId}:`, err);
+          }
+        }
+      }
+
+      // Atualizar last_seen_at dos jogos que ainda existem
+      if (steamAppIds.size > 0) {
+        console.log("🔄 Atualizando last_seen_at...");
+        const appIdsArray = Array.from(steamAppIds);
+        
+        // Atualizar em lotes para evitar query muito grande
+        for (let i = 0; i < appIdsArray.length; i += 100) {
+          const batch = appIdsArray.slice(i, i + 100);
+          await sql`
+            UPDATE games 
+            SET last_seen_at = NOW() 
+            WHERE app_id = ANY(${batch})
+          `;
+        }
+      }
+
+      await sql`COMMIT`;
+      console.log("✅ Transação commitada");
+
+    } catch (error) {
+      await sql`ROLLBACK`;
+      throw error;
+    }
+
+    // 5) Resultado final
+    const finalCount = await sql`SELECT COUNT(*) as total FROM games`;
+    const total = finalCount[0]?.total || 0;
 
     const result = {
       success: true,
-      totalGames: enriched.length,
-      steamAccounts: steamIds.length,
-      enrichmentMode: ENRICH ? "full" : "basic",
-      snapshotCreated,
-      timestamp: new Date().toISOString()
+      summary: {
+        steamAccounts: steamIds.length,
+        steamGamesTotal: steamAppIds.size,
+        bankBefore: currentAppIds.size,
+        bankAfter: total,
+        gamesInserted: inserted,
+        gamesRemoved: removed,
+        timestamp: new Date().toISOString()
+      },
+      changes: {
+        added: inserted > 0 ? `${inserted} jogos adicionados` : "Nenhum jogo novo",
+        removed: removed > 0 ? `${removed} jogos removidos` : "Nenhum jogo removido",
+        updated: `${steamAppIds.size} jogos com last_seen_at atualizado`
+      }
     };
 
-    console.log("🎉 Refresh concluído:", result);
+    console.log("🎉 Sync diferencial concluído:", result.summary);
 
     return {
       statusCode: 200,
@@ -242,13 +176,12 @@ export const handler: Handler = async (event): Promise<HandlerResponse> => {
     };
 
   } catch (err) {
-    console.error("💥 Erro durante refresh:", err);
+    console.error("💥 Erro durante sync diferencial:", err);
     return {
       statusCode: 500,
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ 
-        error: "refresh error", 
-        message: err instanceof Error ? err.message : String(err) 
+        error: err instanceof Error ? err.message : String(err) 
       })
     };
   }
