@@ -1,9 +1,8 @@
 // netlify/functions/refresh-library.ts
-import type { Config, Handler } from "@netlify/functions";
-import { getSql } from "./_db";
 import { getStore } from "@netlify/blobs";
+import { getSql } from "./_db";
 
-export const config: Config = { schedule: "0 */6 * * *" };
+export const config = { schedule: "0 */6 * * *" }; // cron
 
 type SteamOwnedGame = {
   appid: number;
@@ -25,24 +24,23 @@ type Game = {
 
 const API = "https://api.steampowered.com";
 const DETAILS = "https://store.steampowered.com/api/appdetails";
-
-// header padrão da Steam (fallback sem appdetails)
 const headerImg = (appid: number) =>
   `https://cdn.cloudflare.steamstatic.com/steam/apps/${appid}/header.jpg`;
 
-export const handler: Handler = async () => {
+export default async () => {
   try {
     const key = process.env.STEAM_API_KEY || "";
     const idsCsv = process.env.STEAM_IDS || "";
     if (!key || !idsCsv) {
-      return { statusCode: 500, body: "Missing envs (STEAM_API_KEY / STEAM_IDS)" };
+      return new Response("Missing envs (STEAM_API_KEY / STEAM_IDS)", { status: 500 });
     }
 
-    const ENRICH = (process.env.ENRICH_DETAILS ?? "true") !== "false"; // def: true
+    // desative o enrich no primeiro teste com ENRICH_DETAILS=false nas env vars
+    const ENRICH = (process.env.ENRICH_DETAILS ?? "true") !== "false";
     const sql = getSql();
 
-    // 1) Coleta GetOwnedGames e consolida por appid
-    const steamIds = idsCsv.split(",").map(s => s.trim()).filter(Boolean);
+    // 1) GetOwnedGames consolidado
+    const steamIds = idsCsv.split(",").map((s) => s.trim()).filter(Boolean);
     const map = new Map<number, SteamOwnedGame>();
 
     for (const sid of steamIds) {
@@ -58,12 +56,10 @@ export const handler: Handler = async () => {
     }
 
     const owned = Array.from(map.values());
+    const enriched: Game[] = [];
 
-    // 2) Enriquecimento (ou fallback simples)
-    const enriched: Game[] = []; // <<<<<< DECLARADA AQUI
-
+    // 2) Enriquecimento (ou fallback rápido)
     if (!ENRICH) {
-      // modo rápido: sem appdetails
       for (const g of owned) {
         enriched.push({
           app_id: g.appid,
@@ -76,7 +72,7 @@ export const handler: Handler = async () => {
         });
       }
     } else {
-      const BATCH = 15; // seguro p/ evitar 429
+      const BATCH = 15;
       for (let i = 0; i < owned.length; i += BATCH) {
         const batch = owned.slice(i, i + BATCH);
         await Promise.all(
@@ -127,14 +123,14 @@ export const handler: Handler = async () => {
             });
           })
         );
-        await new Promise((r) => setTimeout(r, 300)); // pausa entre lotes
+        await new Promise((r) => setTimeout(r, 300));
       }
     }
 
     // 3) UPSERT no Postgres
     await sql`BEGIN`;
     for (const g of enriched) {
-      await sql/*sql*/`
+      await sql/* sql */`
         INSERT INTO games (app_id, name, cover_url, developer, publisher, release_year, last_seen_at, updated_at)
         VALUES (${g.app_id}, ${g.name}, ${g.cover_url ?? null}, ${g.developer ?? null}, ${g.publisher ?? null}, ${g.release_year ?? null}, NOW(), NOW())
         ON CONFLICT (app_id) DO UPDATE
@@ -149,13 +145,13 @@ export const handler: Handler = async () => {
 
       if (g.genres?.length) {
         for (const name of g.genres) {
-          const rows = await sql/*sql*/`
+          const rows = await sql/* sql */`
             INSERT INTO genres (name) VALUES (${name})
             ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name
             RETURNING id;
           `;
           const id = rows[0].id as number;
-          await sql/*sql*/`
+          await sql/* sql */`
             INSERT INTO game_genres (app_id, genre_id)
             VALUES (${g.app_id}, ${id})
             ON CONFLICT (app_id, genre_id) DO NOTHING;
@@ -165,13 +161,13 @@ export const handler: Handler = async () => {
     }
     await sql`COMMIT`;
 
-    // 4) Snapshot em Blobs
+    // 4) Snapshot em Blobs (zero-config no runtime moderno)
     const store = getStore("games");
     await store.setJSON("all.json", enriched);
 
-    return { statusCode: 200, body: `ok: ${enriched.length} apps` };
-  } catch (err: any) {
+    return new Response(`ok: ${enriched.length} apps`);
+  } catch (err) {
     console.error("refresh-library error:", err);
-    return { statusCode: 500, body: "refresh error" };
+    return new Response("refresh error", { status: 500 });
   }
 };

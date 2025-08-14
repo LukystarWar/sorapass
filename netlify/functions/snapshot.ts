@@ -1,23 +1,20 @@
-import type { Handler } from "@netlify/functions";
 import { getStore } from "@netlify/blobs";
 
-export const handler: Handler = async () => {
+export default async () => {
   try {
     const store = getStore("games");
     const data = await store.get("all.json"); // string | null
     if (!data) {
-      return { statusCode: 404, body: "snapshot not found" };
+      return new Response("snapshot not found", { status: 404 });
     }
-    return {
-      statusCode: 200,
+    return new Response(data, {
       headers: {
         "content-type": "application/json",
         "cache-control": "public, max-age=3600, stale-while-revalidate=86400",
       },
-      body: data,
-    };
+    });
   } catch (err) {
     console.error("snapshot error:", err);
-    return { statusCode: 500, body: "snapshot error" };
+    return new Response("snapshot error", { status: 500 });
   }
 };
