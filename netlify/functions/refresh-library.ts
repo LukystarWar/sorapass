@@ -1,5 +1,4 @@
-import type { Handler } from "@netlify/functions";
-import { getStore } from "@netlify/blobs";
+import type { Handler, HandlerResponse } from "@netlify/functions";
 import { getSql } from "./_db";
 
 type SteamOwnedGame = {
@@ -25,41 +24,45 @@ const DETAILS = "https://store.steampowered.com/api/appdetails";
 const headerImg = (appid: number) =>
   `https://cdn.cloudflare.steamstatic.com/steam/apps/${appid}/header.jpg`;
 
-export const handler: Handler = async (event) => {
-  console.log("🚀 Iniciando refresh da biblioteca...");
-  console.log("ENV CHECK", {
-    NODE_VERSION: process.version,
-    DATABASE_URL: !!(process.env.DATABASE_URL || process.env.NETLIFY_DATABASE_URL),
-    STEAM_API_KEY: !!process.env.STEAM_API_KEY,
-    STEAM_IDS: !!process.env.STEAM_IDS,
-    ENRICH_DETAILS: process.env.ENRICH_DETAILS
-  });
+// Função para tentar usar Blobs (opcional)
+async function tryCreateSnapshot(data: Game[]) {
+  try {
+    const { getStore } = await import("@netlify/blobs");
+    const store = getStore("games");
+    await store.setJSON("all.json", data);
+    return true;
+  } catch (error) {
+    console.warn("⚠️ Blobs não disponível, usando apenas DB:", error);
+    return false;
+  }
+}
 
+export const handler: Handler = async (event): Promise<HandlerResponse> => {
+  console.log("🚀 Iniciando refresh da biblioteca...");
+  
   try {
     const key = process.env.STEAM_API_KEY || "";
     const idsCsv = process.env.STEAM_IDS || "";
     
     if (!key || !idsCsv) {
-      console.error("❌ Variáveis de ambiente faltando");
       return {
         statusCode: 500,
+        headers: { "content-type": "application/json" },
         body: JSON.stringify({ error: "Missing envs (STEAM_API_KEY / STEAM_IDS)" })
       };
     }
 
-    // Desative o enrich no primeiro teste com ENRICH_DETAILS=false
     const ENRICH = (process.env.ENRICH_DETAILS ?? "true") !== "false";
     console.log(`📚 Modo enriquecimento: ${ENRICH ? "ATIVO" : "DESABILITADO"}`);
 
     const sql = getSql();
-
-    // 1) Consolidar jogos de todas as contas Steam
-    console.log("🔍 Buscando jogos das contas Steam...");
     const steamIds = idsCsv.split(",").map((s) => s.trim()).filter(Boolean);
     const map = new Map<number, SteamOwnedGame>();
 
+    // 1) Consolidar jogos de todas as contas Steam
+    console.log(`🔍 Buscando jogos de ${steamIds.length} contas Steam...`);
+    
     for (const sid of steamIds) {
-      console.log(`📋 Processando Steam ID: ${sid}`);
       const url = `${API}/IPlayerService/GetOwnedGames/v0001/?key=${encodeURIComponent(
         key
       )}&steamid=${encodeURIComponent(sid)}&include_appinfo=1&include_played_free_games=1&format=json`;
@@ -67,13 +70,12 @@ export const handler: Handler = async (event) => {
       try {
         const res = await fetch(url);
         if (!res.ok) {
-          console.warn(`⚠️ Erro ao buscar jogos para ${sid}: ${res.status}`);
+          console.warn(`⚠️ Erro ${res.status} para Steam ID ${sid}`);
           continue;
         }
         
         const json = await res.json();
         const games: SteamOwnedGame[] = json?.response?.games ?? [];
-        
         console.log(`✅ ${games.length} jogos encontrados para ${sid}`);
         
         for (const g of games) {
@@ -91,8 +93,9 @@ export const handler: Handler = async (event) => {
 
     const enriched: Game[] = [];
 
-    // 2) Enriquecimento de dados (ou modo rápido)
+    // 2) Enriquecimento de dados
     if (!ENRICH) {
+      // Modo rápido
       console.log("⚡ Modo rápido: apenas dados básicos");
       for (const g of owned) {
         enriched.push({
@@ -106,12 +109,13 @@ export const handler: Handler = async (event) => {
         });
       }
     } else {
+      // Modo completo - com rate limiting para 1k+ jogos
       console.log("🔍 Modo completo: enriquecendo dados...");
-      const BATCH = 10; // Reduzido para evitar rate limit
+      const BATCH = 8; // Reduzido para evitar rate limit
       
       for (let i = 0; i < owned.length; i += BATCH) {
         const batch = owned.slice(i, i + BATCH);
-        console.log(`📦 Processando lote ${Math.floor(i/BATCH) + 1}/${Math.ceil(owned.length/BATCH)}`);
+        console.log(`📦 Lote ${Math.floor(i/BATCH) + 1}/${Math.ceil(owned.length/BATCH)} (${batch.length} jogos)`);
         
         await Promise.all(
           batch.map(async (g) => {
@@ -150,8 +154,7 @@ export const handler: Handler = async (event) => {
                 }
               }
             } catch (error) {
-              // Continua com dados básicos se falhar
-              console.warn(`⚠️ Erro ao enriquecer app ${appid}:`, error);
+              // Continua com dados básicos
             }
 
             enriched.push({
@@ -166,9 +169,9 @@ export const handler: Handler = async (event) => {
           })
         );
         
-        // Pausa entre lotes para respeitar rate limits
+        // Pausa entre lotes para respeitar rate limits da Steam
         if (i + BATCH < owned.length) {
-          await new Promise((r) => setTimeout(r, 500));
+          await new Promise((r) => setTimeout(r, 600));
         }
       }
     }
@@ -176,69 +179,57 @@ export const handler: Handler = async (event) => {
     // 3) Salvar no banco de dados
     console.log("💾 Salvando no banco de dados...");
     
-    try {
-      await sql`BEGIN`;
-      
-      for (const g of enriched) {
-        await sql/* sql */`
-          INSERT INTO games (app_id, name, cover_url, developer, publisher, release_year, last_seen_at, updated_at)
-          VALUES (${g.app_id}, ${g.name}, ${g.cover_url ?? null}, ${g.developer ?? null}, ${g.publisher ?? null}, ${g.release_year ?? null}, NOW(), NOW())
-          ON CONFLICT (app_id) DO UPDATE
-          SET name = EXCLUDED.name,
-              cover_url = EXCLUDED.cover_url,
-              developer = EXCLUDED.developer,
-              publisher = EXCLUDED.publisher,
-              release_year = EXCLUDED.release_year,
-              last_seen_at = NOW(),
-              updated_at = NOW();
-        `;
+    await sql`BEGIN`;
+    
+    for (const g of enriched) {
+      await sql/* sql */`
+        INSERT INTO games (app_id, name, cover_url, developer, publisher, release_year, last_seen_at, updated_at)
+        VALUES (${g.app_id}, ${g.name}, ${g.cover_url ?? null}, ${g.developer ?? null}, ${g.publisher ?? null}, ${g.release_year ?? null}, NOW(), NOW())
+        ON CONFLICT (app_id) DO UPDATE
+        SET name = EXCLUDED.name,
+            cover_url = EXCLUDED.cover_url,
+            developer = EXCLUDED.developer,
+            publisher = EXCLUDED.publisher,
+            release_year = EXCLUDED.release_year,
+            last_seen_at = NOW(),
+            updated_at = NOW();
+      `;
 
-        if (g.genres?.length) {
-          for (const genreName of g.genres) {
-            try {
-              const rows = await sql/* sql */`
-                INSERT INTO genres (name) VALUES (${genreName})
-                ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name
-                RETURNING id;
-              `;
-              const genreId = rows[0].id as number;
-              
-              await sql/* sql */`
-                INSERT INTO game_genres (app_id, genre_id)
-                VALUES (${g.app_id}, ${genreId})
-                ON CONFLICT (app_id, genre_id) DO NOTHING;
-              `;
-            } catch (error) {
-              console.warn(`⚠️ Erro ao salvar gênero ${genreName} para app ${g.app_id}:`, error);
-            }
+      // Salvar gêneros se disponíveis
+      if (g.genres?.length) {
+        for (const genreName of g.genres) {
+          try {
+            const rows = await sql/* sql */`
+              INSERT INTO genres (name) VALUES (${genreName})
+              ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name
+              RETURNING id;
+            `;
+            const genreId = rows[0].id as number;
+            
+            await sql/* sql */`
+              INSERT INTO game_genres (app_id, genre_id)
+              VALUES (${g.app_id}, ${genreId})
+              ON CONFLICT (app_id, genre_id) DO NOTHING;
+            `;
+          } catch (error) {
+            console.warn(`⚠️ Erro ao salvar gênero ${genreName}:`, error);
           }
         }
       }
-      
-      await sql`COMMIT`;
-      console.log("✅ Dados salvos no banco");
-      
-    } catch (error) {
-      await sql`ROLLBACK`;
-      throw error;
     }
+    
+    await sql`COMMIT`;
+    console.log("✅ Dados salvos no banco");
 
-    // 4) Criar snapshot em Blobs para acesso rápido
-    console.log("📸 Criando snapshot...");
-    try {
-      const store = getStore("games");
-      await store.setJSON("all.json", enriched);
-      console.log("✅ Snapshot criado");
-    } catch (error) {
-      console.error("❌ Erro ao criar snapshot:", error);
-      // Não falha a operação se o snapshot falhar
-    }
+    // 4) Tentar criar snapshot (opcional)
+    const snapshotCreated = await tryCreateSnapshot(enriched);
 
     const result = {
       success: true,
       totalGames: enriched.length,
       steamAccounts: steamIds.length,
       enrichmentMode: ENRICH ? "full" : "basic",
+      snapshotCreated,
       timestamp: new Date().toISOString()
     };
 
