@@ -1,3 +1,8 @@
+[build]
+command = "npm run build"
+functions = "netlify/functions"
+publish = "."
+
 [build.environment]
 NODE_VERSION = "20"
 
@@ -5,35 +10,46 @@ NODE_VERSION = "20"
 node_bundler = "esbuild"
 external_node_modules = ["@neondatabase/serverless", "@netlify/blobs"]
 
-# Schedule function - ajuste conforme necessário
+# Schedule function
 [functions."refresh-library"]
-schedule = "0 */6 * * *"  # A cada 6 horas
+schedule = "0 */6 * * *"
 
-# API Routes
+# API Routes - ordem importa!
 [[redirects]]
-from = "/api/games"
-to = "/.netlify/functions/games"
+from = "/api/test-setup"
+to = "/.netlify/functions/test-setup"
 status = 200
-
-[[redirects]]
-from = "/api/game/*"
-to = "/.netlify/functions/game/:splat"
-status = 200
-
-[[redirects]]
-from = "/api/snapshot"
-to = "/.netlify/functions/snapshot"
-status = 200
-
-[[redirects]]
-from = "/api/ping"
-to = "/.netlify/functions/ping"
-status = 200
+force = true
 
 [[redirects]]
 from = "/api/refresh"
 to = "/.netlify/functions/refresh-library"
 status = 200
+force = true
+
+[[redirects]]
+from = "/api/snapshot"
+to = "/.netlify/functions/snapshot"
+status = 200
+force = true
+
+[[redirects]]
+from = "/api/ping"
+to = "/.netlify/functions/ping"
+status = 200
+force = true
+
+[[redirects]]
+from = "/api/games"
+to = "/.netlify/functions/games"
+status = 200
+force = true
+
+[[redirects]]
+from = "/api/game/:id"
+to = "/.netlify/functions/game/:id"
+status = 200
+force = true
 
 # Page redirects
 [[redirects]]
