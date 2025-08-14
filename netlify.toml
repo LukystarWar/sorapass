@@ -19,6 +19,12 @@ status = 200
 force = true
 
 [[redirects]]
+from = "/api/simple-refresh"
+to = "/.netlify/functions/simple-refresh"
+status = 200
+force = true
+
+[[redirects]]
 from = "/api/test-setup"
 to = "/.netlify/functions/test-setup"
 status = 200
