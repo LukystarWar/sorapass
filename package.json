@@ -1,0 +1,7 @@
+{
+  "dependencies": {
+    "@neondatabase/serverless": "^1.0.1",
+    "@netlify/blobs": "^10.0.8",
+    "@netlify/functions": "^4.2.1"
+  }
+}

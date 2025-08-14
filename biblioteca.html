@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Biblioteca – Sora’s Pass</title>
+  <link rel="stylesheet" href="assets/css/styles.css" />
+  <style>
+    /* ajustes leves (ou mova para seu styles.css) */
+    .page { max-width: 1200px; margin: 0 auto; padding: 24px; }
+    .toolbar { display: grid; gap: 12px; grid-template-columns: 1fr 160px 160px; align-items: center; margin-bottom: 16px; }
+    .toolbar input, .toolbar select { padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; }
+    .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+    .card { background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,.06); display:flex; flex-direction:column; }
+    .card img { width: 100%; aspect-ratio: 16/9; object-fit: cover; background:#f3f3f3; }
+    .card .body { padding: 10px 12px; }
+    .card h3 { font-size: 15px; margin: 0 0 6px; line-height: 1.25; }
+    .card p { margin: 0; color:#666; font-size: 13px; }
+    .muted { color:#888; font-size: 14px; }
+    .footer-note { text-align:center; color:#888; padding: 24px 0; }
+    .sticky { position: sticky; top: 0; background: #fafafa; padding: 10px 0; z-index: 5; }
+  </style>
+</head>
+<body>
+  <header class="sticky">
+    <div class="page">
+      <h1 style="margin:0;">Biblioteca de Jogos</h1>
+      <p class="muted" style="margin:4px 0 0;">Catálogo completo dos membros do Sora’s Pass</p>
+    </div>
+  </header>
+
+  <main class="page">
+    <div class="toolbar">
+      <input id="q" type="search" placeholder="Buscar por nome…" />
+      <select id="year">
+        <option value="">Ano (todos)</option>
+      </select>
+      <select id="genre">
+        <option value="">Gênero (todos)</option>
+      </select>
+    </div>
+
+    <div id="count" class="muted" style="margin-bottom:12px;"></div>
+    <div id="grid" class="grid"></div>
+    <div id="sentinel" class="footer-note">Carregando…</div>
+  </main>
+
+  <script>
+    // Config
+    const PAGE_SIZE = 60;
+
+    // Estado
+    let allGames = null;        // quando vier do snapshot
+    let filtered = [];          // lista após filtros
+    let page = 1;               // paginação client-side (snapshot)
+    let loading = false;
+    let usingSnapshot = false;
+    let reachedEnd = false;     // para API paginada
+
+    const $grid = document.getElementById('grid');
+    const $count = document.getElementById('count');
+    const $q = document.getElementById('q');
+    const $year = document.getElementById('year');
+    const $genre = document.getElementById('genre');
+    const $sentinel = document.getElementById('sentinel');
+
+    // Utils
+    function tmplCard(g) {
+      const cover = g.cover_url || 'assets/img/placeholder.jpg';
+      const yr = g.release_year ? ` • ${g.release_year}` : '';
+      return `
+        <article class="card">
+          <img src="${cover}" alt="${g.name}">
+          <div class="body">
+            <h3 title="${g.name}">${g.name}</h3>
+            <p>${(g.developer || g.publisher || '—')}${yr}</p>
+          </div>
+        </article>
+      `;
+    }
+
+    function applyFilters(list) {
+      const q = $q.value.trim().toLowerCase();
+      const yr = $year.value;
+      const gn = $genre.value;
+
+      return list.filter(g => {
+        if (q && !g.name.toLowerCase().includes(q)) return false;
+        if (yr && String(g.release_year) !== yr) return false;
+        if (gn && !(g.genres || []).includes(gn)) return false;
+        return true;
+      });
+    }
+
+    function renderChunk(list, start, size) {
+      const slice = list.slice(start, start + size);
+      const html = slice.map(tmplCard).join('');
+      const frag = document.createElement('div');
+      frag.innerHTML = html;
+      while (frag.firstChild) $grid.appendChild(frag.firstChild);
+    }
+
+    function fillFiltersFrom(list) {
+      const years = new Set(), genres = new Set();
+      list.forEach(g => {
+        if (g.release_year) years.add(g.release_year);
+        (g.genres || []).forEach(x => genres.add(x));
+      });
+      // Ordena anos desc, gêneros asc
+      [...years].sort((a,b)=>b-a).forEach(y => {
+        const o = document.createElement('option'); o.value = String(y); o.textContent = y; $year.appendChild(o);
+      });
+      [...genres].sort().forEach(x => {
+        const o = document.createElement('option'); o.value = x; o.textContent = x; $genre.appendChild(o);
+      });
+    }
+
+    function updateCount(total, showing) {
+      $count.textContent = `${showing} de ${total} jogos`;
+    }
+
+    // Snapshot first, API fallback
+    async function trySnapshot() {
+      try {
+        const r = await fetch('/api/snapshot', { cache: 'no-store' });
+        if (!r.ok) return false;
+        const data = await r.json();
+        if (!Array.isArray(data)) return false;
+        usingSnapshot = true;
+        allGames = data;
+        filtered = applyFilters(allGames);
+        $grid.innerHTML = '';
+        page = 1;
+        renderChunk(filtered, 0, PAGE_SIZE);
+        updateCount(allGames.length, Math.min(filtered.length, PAGE_SIZE));
+        if ($year.options.length === 1 || $genre.options.length === 1) fillFiltersFrom(allGames);
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    // API paginada
+    async function fetchPage(p) {
+      loading = true;
+      const r = await fetch(`/api/games?page=${p}&per=${PAGE_SIZE}`);
+      loading = false;
+      if (!r.ok) return [];
+      const j = await r.json();
+      if (!j.results?.length) reachedEnd = true;
+      return j.results || [];
+    }
+
+    async function loadMore() {
+      if (loading || reachedEnd) return;
+
+      if (usingSnapshot) {
+        const start = (page - 1) * PAGE_SIZE;
+        const remain = filtered.length - start;
+        if (remain <= 0) { reachedEnd = true; $sentinel.textContent = "Fim da lista"; return; }
+        renderChunk(filtered, start, PAGE_SIZE);
+        updateCount(allGames.length, Math.min(filtered.length, page * PAGE_SIZE));
+        page++;
+        if ((page - 1) * PAGE_SIZE >= filtered.length) { reachedEnd = true; $sentinel.textContent = "Fim da lista"; }
+      } else {
+        const items = await fetchPage(page);
+        if (!items.length) { $sentinel.textContent = "Fim da lista"; return; }
+        // filtros client-side também na API, para não quebrar UX
+        const after = applyFilters(items);
+        const html = after.map(tmplCard).join('');
+        $grid.insertAdjacentHTML('beforeend', html);
+        const current = document.querySelectorAll('.card').length;
+        const total = '—'; // desconhecido via API pura
+        updateCount(total, current);
+        page++;
+      }
+    }
+
+    // Observador para infinite scroll
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some(e => e.isIntersecting)) loadMore();
+    }, { rootMargin: '200px' });
+
+    // Filtros
+    const debounced = (fn, ms=250) => {
+      let t; return (...args) => { clearTimeout(t); t=setTimeout(()=>fn(...args), ms); }
+    };
+    const onFilter = debounced(() => {
+      if (!usingSnapshot) {
+        // Se estiver na API, recomeça do zero (opção simples)
+        page = 1; reachedEnd = false; $grid.innerHTML = '';
+      } else {
+        filtered = applyFilters(allGames);
+        $grid.innerHTML = '';
+        page = 1; reachedEnd = false;
+        renderChunk(filtered, 0, PAGE_SIZE);
+        updateCount(allGames.length, Math.min(filtered.length, PAGE_SIZE));
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, 200);
+
+    $q.addEventListener('input', onFilter);
+    $year.addEventListener('change', onFilter);
+    $genre.addEventListener('change', onFilter);
+
+    // Boot
+    (async function init() {
+      const ok = await trySnapshot();
+      if (!ok) {
+        usingSnapshot = false;
+        page = 1;
+        await loadMore(); // carrega primeira página da API
+      }
+      io.observe($sentinel);
+    })();
+  </script>
+</body>
+</html>
