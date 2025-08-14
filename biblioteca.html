@@ -485,8 +485,10 @@
             <div class="logo">Sora's Pass</div>
             <ul class="nav-links">
                 <li><a href="/">Início</a></li>
-                <li><a href="/biblioteca">Biblioteca</a></li>
+                <li><a href="/#sobre">Sobre</a></li>
                 <li><a href="/#planos">Planos</a></li>
+                <li><a href="/biblioteca">Biblioteca</a></li>
+                <li><a href="/#regras">Regras</a></li>
                 <li><a href="/#contato">Contato</a></li>
             </ul>
         </div>
@@ -504,10 +506,6 @@
                     <div class="stat-card">
                         <div class="stat-number" id="total-games">--</div>
                         <div class="stat-label">Jogos Disponíveis</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-number">R$ ---.---</div>
-                        <div class="stat-label">Valor Estimado</div>
                     </div>
                     <div class="stat-card">
                         <div class="stat-number">5</div>
@@ -775,8 +773,6 @@
             card.onclick = () => openSteamStore(game.app_id);
 
             const imageUrl = game.cover_url || `https://cdn.cloudflare.steamstatic.com/steam/apps/${game.app_id}/header.jpg`;
-            // const developer = game.developer || 'Desenvolvedor desconhecido';
-            // const year = game.release_year || '';
 
             card.innerHTML = `
                 <div class="game-image">
@@ -789,17 +785,6 @@
                 </div>
                 <div class="game-info">
                     <h3 class="game-title">${game.name}</h3>
-                    // <div class="game-details">
-                    //     <span class="game-developer">${developer}</span>
-                    //     ${year ? `<span class="game-year">${year}</span>` : ''}
-                    // </div>
-                    // <div class="game-footer">
-                    //     <span class="game-price">R$ --,--</span>
-                    //     <span class="game-copies">
-                    //         -- disponível
-                    //         <span class="availability-indicator"></span>
-                    //     </span>
-                    // </div>
                 </div>
             `;
 
