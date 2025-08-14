@@ -1,15 +1,6 @@
 import type { Handler, HandlerResponse } from "@netlify/functions";
 import { getSql } from "./_db";
 
-type SteamGame = {
-  appid: number;
-  name?: string;
-};
-
-const API = "https://api.steampowered.com";
-const headerImg = (appid: number) =>
-  `https://cdn.cloudflare.steamstatic.com/steam/apps/${appid}/header.jpg`;
-
 export const handler: Handler = async (): Promise<HandlerResponse> => {
   console.log("🚀 Sync diferencial iniciado...");
   
@@ -28,24 +19,22 @@ export const handler: Handler = async (): Promise<HandlerResponse> => {
     const sql = getSql();
     const steamIds = idsCsv.split(",").map(s => s.trim()).filter(Boolean);
 
-    // 1) Buscar todos os app_ids atuais no banco
+    // 1) Buscar app_ids atuais no banco (já são numbers, não precisa conversão)
     console.log("📚 Buscando app_ids atuais no banco...");
-    const currentGamesResult = await sql`
-      SELECT app_id FROM games ORDER BY app_id
-    `;
-    const currentAppIds = new Set<number>(currentGamesResult.map(g => Number(g.app_id)));
+    const currentGamesResult = await sql`SELECT app_id FROM games ORDER BY app_id`;
+    const currentAppIds = new Set<number>(currentGamesResult.map(g => g.app_id as number));
     console.log(`💾 Banco atual: ${currentAppIds.size} jogos`);
 
-    // 2) Buscar todos os app_ids das contas Steam
-    console.log("🎮 Buscando app_ids de todas as contas Steam...");
+    // 2) Buscar app_ids do Steam
+    console.log("🎮 Buscando app_ids do Steam...");
     const steamAppIds = new Set<number>();
-    const newGames: SteamGame[] = [];
+    const newGames: Array<{appid: number, name?: string}> = [];
 
     for (const steamId of steamIds) {
       console.log(`📋 Processando Steam ID: ${steamId}`);
       
       try {
-        const url = `${API}/IPlayerService/GetOwnedGames/v0001/?key=${key}&steamid=${steamId}&include_appinfo=1&format=json`;
+        const url = `https://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/?key=${key}&steamid=${steamId}&include_appinfo=1&format=json`;
         const res = await fetch(url);
         
         if (!res.ok) {
@@ -54,13 +43,12 @@ export const handler: Handler = async (): Promise<HandlerResponse> => {
         }
 
         const json = await res.json();
-        const games: SteamGame[] = json?.response?.games || [];
+        const games = json?.response?.games || [];
         console.log(`✅ ${games.length} jogos encontrados para ${steamId}`);
 
         for (const game of games) {
           steamAppIds.add(game.appid);
           
-          // Se é novo, adiciona na lista para inserção
           if (!currentAppIds.has(game.appid)) {
             newGames.push(game);
           }
@@ -74,7 +62,7 @@ export const handler: Handler = async (): Promise<HandlerResponse> => {
     console.log(`🎮 Steam atual: ${steamAppIds.size} jogos únicos`);
     console.log(`🆕 Jogos novos: ${newGames.length}`);
 
-    // 3) Identificar jogos removidos (estão no banco mas não no Steam)
+    // 3) Identificar jogos removidos
     const removedAppIds: number[] = [];
     for (const appId of currentAppIds) {
       if (!steamAppIds.has(appId)) {
@@ -83,91 +71,65 @@ export const handler: Handler = async (): Promise<HandlerResponse> => {
     }
     console.log(`🗑️ Jogos removidos: ${removedAppIds.length}`);
 
-    // 4) Aplicar mudanças no banco
+    // 4) Aplicar mudanças
     let inserted = 0;
     let removed = 0;
 
     await sql`BEGIN`;
 
     try {
-      // Inserir jogos novos
+      // Inserir novos
       if (newGames.length > 0) {
         console.log("📥 Inserindo jogos novos...");
-        
         for (const game of newGames) {
-          try {
-            await sql`
-              INSERT INTO games (app_id, name, cover_url, last_seen_at, updated_at)
-              VALUES (${game.appid}, ${game.name || `App ${game.appid}`}, ${headerImg(game.appid)}, NOW(), NOW())
-            `;
-            inserted++;
-          } catch (err) {
-            console.warn(`Erro ao inserir ${game.appid}:`, err);
-          }
-        }
-      }
-
-      // Remover jogos que não estão mais disponíveis
-      if (removedAppIds.length > 0) {
-        console.log("🗑️ Removendo jogos não disponíveis...");
-        
-        for (const appId of removedAppIds) {
-          try {
-            await sql`DELETE FROM games WHERE app_id = ${appId}`;
-            removed++;
-          } catch (err) {
-            console.warn(`Erro ao remover ${appId}:`, err);
-          }
-        }
-      }
-
-      // Atualizar last_seen_at dos jogos que ainda existem
-      if (steamAppIds.size > 0) {
-        console.log("🔄 Atualizando last_seen_at...");
-        const appIdsArray = Array.from(steamAppIds);
-        
-        // Atualizar em lotes para evitar query muito grande
-        for (let i = 0; i < appIdsArray.length; i += 100) {
-          const batch = appIdsArray.slice(i, i + 100);
           await sql`
-            UPDATE games 
-            SET last_seen_at = NOW() 
-            WHERE app_id = ANY(${batch})
+            INSERT INTO games (app_id, name, cover_url, last_seen_at, updated_at)
+            VALUES (${game.appid}, ${game.name || `App ${game.appid}`}, ${'https://cdn.cloudflare.steamstatic.com/steam/apps/' + game.appid + '/header.jpg'}, NOW(), NOW())
           `;
+          inserted++;
+        }
+      }
+
+      // Remover antigos
+      if (removedAppIds.length > 0) {
+        console.log("🗑️ Removendo jogos órfãos...");
+        for (const appId of removedAppIds) {
+          await sql`DELETE FROM games WHERE app_id = ${appId}`;
+          removed++;
+        }
+      }
+
+      // Atualizar last_seen_at
+      if (steamAppIds.size > 0) {
+        console.log("🔄 Atualizando timestamps...");
+        for (const appId of steamAppIds) {
+          await sql`UPDATE games SET last_seen_at = NOW() WHERE app_id = ${appId}`;
         }
       }
 
       await sql`COMMIT`;
-      console.log("✅ Transação commitada");
+      console.log("✅ Mudanças aplicadas");
 
     } catch (error) {
       await sql`ROLLBACK`;
       throw error;
     }
 
-    // 5) Resultado final
-    const finalCount = await sql`SELECT COUNT(*) as total FROM games`;
-    const total = finalCount[0]?.total || 0;
+    // 5) Contagem final
+    const finalResult = await sql`SELECT COUNT(*) as total FROM games`;
+    const finalCount = finalResult[0]?.total || 0;
 
     const result = {
       success: true,
-      summary: {
-        steamAccounts: steamIds.length,
-        steamGamesTotal: steamAppIds.size,
-        bankBefore: currentAppIds.size,
-        bankAfter: total,
-        gamesInserted: inserted,
-        gamesRemoved: removed,
-        timestamp: new Date().toISOString()
-      },
-      changes: {
-        added: inserted > 0 ? `${inserted} jogos adicionados` : "Nenhum jogo novo",
-        removed: removed > 0 ? `${removed} jogos removidos` : "Nenhum jogo removido",
-        updated: `${steamAppIds.size} jogos com last_seen_at atualizado`
-      }
+      before: currentAppIds.size,
+      after: finalCount,
+      steamGames: steamAppIds.size,
+      inserted,
+      removed,
+      message: `Sincronizado: ${finalCount} jogos no banco (Steam tem ${steamAppIds.size})`
     };
 
-    console.log("🎉 Sync diferencial concluído:", result.summary);
+    console.log("🎉 Sync concluído:", result);
 
     return {
       statusCode: 200,
@@ -176,12 +138,13 @@ export const handler: Handler = async (): Promise<HandlerResponse> => {
     };
 
   } catch (err) {
-    console.error("💥 Erro durante sync diferencial:", err);
+    console.error("💥 Erro:", err);
     return {
       statusCode: 500,
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ 
-        error: err instanceof Error ? err.message : String(err) 
+        error: err instanceof Error ? err.message : String(err),
+        stack: err instanceof Error ? err.stack : undefined
       })
     };
   }
