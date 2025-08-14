@@ -13,6 +13,12 @@ schedule = "0 */6 * * *"
 
 # API Routes - ordem importa!
 [[redirects]]
+from = "/api/minimal-refresh"
+to = "/.netlify/functions/minimal-refresh"
+status = 200
+force = true
+
+[[redirects]]
 from = "/api/simple-sync"
 to = "/.netlify/functions/simple-sync"
 status = 200
