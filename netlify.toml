@@ -5,18 +5,14 @@ NODE_VERSION = "20"
 node_bundler = "esbuild"
 external_node_modules = ["@neondatabase/serverless", "@netlify/blobs"]
 
+# Schedule function - ajuste conforme necessário
 [functions."refresh-library"]
-# roda a cada 6 horas (UTC). Ajuste como quiser.
-schedule = "0 */6 * * *"
+schedule = "0 */6 * * *"  # A cada 6 horas
 
+# API Routes
 [[redirects]]
 from = "/api/games"
 to = "/.netlify/functions/games"
-status = 200
-
-[[redirects]]
-from = "/biblioteca"
-to = "/biblioteca.html"
 status = 200
 
 [[redirects]]
@@ -34,5 +30,13 @@ from = "/api/ping"
 to = "/.netlify/functions/ping"
 status = 200
 
+[[redirects]]
+from = "/api/refresh"
+to = "/.netlify/functions/refresh-library"
+status = 200
 
-
+# Page redirects
+[[redirects]]
+from = "/biblioteca"
+to = "/biblioteca.html"
+status = 200

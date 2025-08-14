@@ -1,13 +1,12 @@
-// netlify/functions/ping.ts
-import type { Handler } from "@netlify/functions";
+import type { Handler, HandlerResponse } from "@netlify/functions";
 import { getSql } from "./_db";
 import { getStore } from "@netlify/blobs";
 
-export const handler: Handler = async () => {
+export const handler: Handler = async (): Promise<HandlerResponse> => {
   const out: any = {
     runtime: { node: process.versions.node },
     env: {
-      DATABASE_URL: !!process.env.DATABASE_URL,
+      DATABASE_URL: !!(process.env.DATABASE_URL || process.env.NETLIFY_DATABASE_URL),
       STEAM_API_KEY: !!process.env.STEAM_API_KEY,
       STEAM_IDS: !!process.env.STEAM_IDS,
       ENRICH_DETAILS: process.env.ENRICH_DETAILS ?? null,
@@ -20,7 +19,7 @@ export const handler: Handler = async () => {
   // Teste DB (Postgres / Netlify DB)
   try {
     const sql = getSql();
-    const r = await sql/* sql */`select 1 as ok`;
+    const r = await sql/* sql */`SELECT 1 as ok`;
     out.db = r?.[0]?.ok === 1 ? "ok" : r;
   } catch (e: any) {
     out.db = `error: ${e?.message || String(e)}`;

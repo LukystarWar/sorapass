@@ -1,15 +1,20 @@
-import type { Handler } from "@netlify/functions";
+import type { Handler, HandlerResponse } from "@netlify/functions";
 import { getSql } from "./_db";
 
-export const handler: Handler = async (event) => {
+export const handler: Handler = async (event): Promise<HandlerResponse> => {
   try {
     // id pode vir no path (/api/game/570) ou como ?id=570
     const bits = (event.path || "").split("/");
     const last = bits[bits.length - 1];
     const idStr = event.queryStringParameters?.id || last;
     const id = Number(idStr);
+    
     if (!id) {
-      return { statusCode: 400, body: "missing id" };
+      return { 
+        statusCode: 400, 
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ error: "missing id" })
+      };
     }
 
     const sql = getSql();
@@ -34,12 +39,17 @@ export const handler: Handler = async (event) => {
       statusCode: game ? 200 : 404,
       headers: {
         "content-type": "application/json",
-        "cache-control": "public, max-age=3600",
+        "cache-control": "public, max-age=3600"
       },
-      body: JSON.stringify(game),
+      body: JSON.stringify(game)
     };
+
   } catch (err) {
     console.error("game error:", err);
-    return { statusCode: 500, body: "db error" };
+    return { 
+      statusCode: 500, 
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ error: "db error" })
+    };
   }
 };

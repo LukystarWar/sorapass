@@ -1,26 +1,48 @@
+import type { Handler, HandlerResponse } from "@netlify/functions";
 import { getStore } from "@netlify/blobs";
 
-export default async () => {
-    console.log("ENV CHECK", {
-    NODE_VERSION: process.version,
-    DATABASE_URL: !!process.env.DATABASE_URL,
-    STEAM_API_KEY: !!process.env.STEAM_API_KEY,
-    STEAM_IDS: process.env.STEAM_IDS
-  });
+export const handler: Handler = async (event): Promise<HandlerResponse> => {
+  console.log("📸 Requisição de snapshot recebida");
+  
   try {
     const store = getStore("games");
-    const data = await store.get("all.json"); // string | null
+    const data = await store.get("all.json");
+    
     if (!data) {
-      return new Response("snapshot not found", { status: 404 });
+      console.log("❌ Snapshot não encontrado");
+      return {
+        statusCode: 404,
+        headers: { 
+          "content-type": "application/json",
+          "cache-control": "no-cache"
+        },
+        body: JSON.stringify({ error: "snapshot not found" })
+      };
     }
-    return new Response(data, {
+
+    console.log("✅ Snapshot encontrado e retornado");
+    
+    return {
+      statusCode: 200,
       headers: {
         "content-type": "application/json",
-        "cache-control": "public, max-age=3600, stale-while-revalidate=86400",
+        "cache-control": "public, max-age=3600, stale-while-revalidate=86400"
       },
-    });
+      body: data // já é uma string JSON
+    };
+    
   } catch (err) {
-    console.error("snapshot error:", err);
-    return new Response("snapshot error", { status: 500 });
+    console.error("💥 Erro no snapshot:", err);
+    return {
+      statusCode: 500,
+      headers: { 
+        "content-type": "application/json",
+        "cache-control": "no-cache"
+      },
+      body: JSON.stringify({ 
+        error: "snapshot error", 
+        message: err instanceof Error ? err.message : String(err) 
+      })
+    };
   }
 };
