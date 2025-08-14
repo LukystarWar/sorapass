@@ -26,5 +26,10 @@ from = "/api/snapshot"
 to = "/.netlify/functions/snapshot"
 status = 200
 
+[[redirects]]
+from = "/api/ping"
+to = "/.netlify/functions/ping"
+status = 200
+
 [build.environment]
 NODE_VERSION = "20"
