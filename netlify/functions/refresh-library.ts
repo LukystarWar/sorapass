@@ -31,7 +31,10 @@ export const handler: Handler = async (): Promise<HandlerResponse> => {
     const steamIds = idsCsv.split(",").map(s => s.trim()).filter(Boolean);
     const steamGames = new Map<number, SteamGame>();
     
+    console.log(`📋 Processando ${steamIds.length} contas Steam...`);
+    
     for (const steamId of steamIds) {
+      console.log(`⚙️ Processando Steam ID: ${steamId}`);
       const url = `https://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/?key=${key}&steamid=${steamId}&include_appinfo=1&format=json`;
       
       try {
@@ -39,18 +42,22 @@ export const handler: Handler = async (): Promise<HandlerResponse> => {
         if (res.ok) {
           const json = await res.json();
           const games: SteamGame[] = json?.response?.games || [];
+          console.log(`✅ ${games.length} jogos encontrados para Steam ID ${steamId}`);
           
           for (const game of games) {
             if (!steamGames.has(game.appid)) {
               steamGames.set(game.appid, game);
             }
           }
+        } else {
+          console.warn(`⚠️ Erro ${res.status} para Steam ID ${steamId}`);
         }
       } catch (error) {
-        console.warn(`Erro Steam ID ${steamId}`);
+        console.warn(`❌ Erro ao processar Steam ID ${steamId}:`, error);
       }
     }
     
+    console.log(`🎮 Total de jogos únicos encontrados: ${steamGames.size}`);
     const steamAppIds = new Set<number>(steamGames.keys());
     
     // 3) Calcular diferenças
