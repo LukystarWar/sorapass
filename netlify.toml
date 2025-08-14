@@ -13,6 +13,12 @@ schedule = "0 */6 * * *"
 
 # API Routes - ordem importa!
 [[redirects]]
+from = "/api/debug-sync"
+to = "/.netlify/functions/debug-sync"
+status = 200
+force = true
+
+[[redirects]]
 from = "/api/debug-refresh"
 to = "/.netlify/functions/debug-refresh"
 status = 200
