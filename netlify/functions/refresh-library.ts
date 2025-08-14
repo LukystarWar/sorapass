@@ -28,6 +28,13 @@ const headerImg = (appid: number) =>
   `https://cdn.cloudflare.steamstatic.com/steam/apps/${appid}/header.jpg`;
 
 export default async () => {
+  console.log("ENV CHECK", {
+    NODE_VERSION: process.version,
+    DATABASE_URL: !!process.env.DATABASE_URL,
+    STEAM_API_KEY: !!process.env.STEAM_API_KEY,
+    STEAM_IDS: process.env.STEAM_IDS
+  });
+
   try {
     const key = process.env.STEAM_API_KEY || "";
     const idsCsv = process.env.STEAM_IDS || "";

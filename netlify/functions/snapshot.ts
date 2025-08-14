@@ -1,6 +1,12 @@
 import { getStore } from "@netlify/blobs";
 
 export default async () => {
+    console.log("ENV CHECK", {
+    NODE_VERSION: process.version,
+    DATABASE_URL: !!process.env.DATABASE_URL,
+    STEAM_API_KEY: !!process.env.STEAM_API_KEY,
+    STEAM_IDS: process.env.STEAM_IDS
+  });
   try {
     const store = getStore("games");
     const data = await store.get("all.json"); // string | null
