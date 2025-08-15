@@ -70,7 +70,7 @@ export const handler: Handler = async (): Promise<HandlerResponse> => {
       } catch (error) {
         console.warn(`⚠️ Erro Steam ID ${steamId}:`, error);
       }
-    } // ← Esta chave estava faltando!
+    }
     
     // 3) Inserir tudo novamente
     console.log("📥 Inserindo tudo...");
@@ -84,7 +84,7 @@ export const handler: Handler = async (): Promise<HandlerResponse> => {
         `;
         inserted++;
       } catch (err) {
-        console.warn(`Erro inserindo ${game.appid}:`, err);
+        console.warn(`Erro inserindo ${game.appid}`);
       }
     }
     
@@ -104,13 +104,11 @@ export const handler: Handler = async (): Promise<HandlerResponse> => {
     };
     
   } catch (err) {
-    console.error("simple-sync error:", err);
     return {
       statusCode: 500,
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ 
-        error: err instanceof Error ? err.message : String(err),
-        stack: err instanceof Error ? err.stack : undefined
+        error: err instanceof Error ? err.message : String(err)
       })
     };
   }
