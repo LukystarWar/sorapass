@@ -248,7 +248,7 @@ function createGameCard(game) {
                 src="${imageUrl}" 
                 alt="${game.name || 'Jogo'}"
                 loading="lazy"
-                onerror="this.parentElement.innerHTML='<div class=\\"game-image-placeholder\\">🎮</div>
+                onerror="this.parentElement.innerHTML='<div class=\\"game-image-placeholder\\"></div>
         </div>
         <div class="game-info">
             <h3 class="game-title">${game.name || 'Nome indisponível'}</h3>
