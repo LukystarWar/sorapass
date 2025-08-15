@@ -8,16 +8,10 @@ external_node_modules = ["@neondatabase/serverless"]
 included_files = ["node_modules/@netlify/blobs/**/*"]
 
 # Schedule function
-[functions."refresh-library"]
+[functions."simple-sync"]
 schedule = "0 */6 * * *"
 
 # API Routes - ordem importa!
-[[redirects]]
-from = "/api/minimal-refresh"
-to = "/.netlify/functions/minimal-refresh"
-status = 200
-force = true
-
 [[redirects]]
 from = "/api/simple-sync"
 to = "/.netlify/functions/simple-sync"
@@ -31,38 +25,14 @@ status = 200
 force = true
 
 [[redirects]]
-from = "/api/debug-refresh"
-to = "/.netlify/functions/debug-refresh"
-status = 200
-force = true
-
-[[redirects]]
-from = "/api/simple-refresh"
-to = "/.netlify/functions/simple-refresh"
-status = 200
-force = true
-
-[[redirects]]
 from = "/api/test-setup"
 to = "/.netlify/functions/test-setup"
 status = 200
 force = true
 
 [[redirects]]
-from = "/api/refresh"
-to = "/.netlify/functions/refresh-library"
-status = 200
-force = true
-
-[[redirects]]
 from = "/api/snapshot"
 to = "/.netlify/functions/snapshot"
-status = 200
-force = true
-
-[[redirects]]
-from = "/api/ping"
-to = "/.netlify/functions/ping"
 status = 200
 force = true
 

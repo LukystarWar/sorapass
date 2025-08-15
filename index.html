@@ -1,21 +1,24 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="color-scheme" content="light dark">
-    <title>Sora's Pass - A Família Steam de Game Pass</title>
-    <link rel="icon" type="image/png" href="assets/img/sora_icone.png">
-    <link rel="stylesheet" href="assets/css/styles.css">
+    <title>Inicio - Sora's Pass</title>
+    <link rel="icon" type="image/png" href="assets/img/logo.png">
+    <link rel="stylesheet" href="assets/css/index.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
+
 <body>
     <!-- Navigation -->
     <nav class="nav">
         <div class="nav-container">
-            <div class="logo">
-                Sora's Pass
-            </div>
+            <button class="menu-toggle" onclick="toggleMenu()">
+                <span></span>
+            </button>
+            <div class="logo">Sora's Pass</div>
             <ul class="nav-links">
                 <li><a href="#sobre">Sobre</a></li>
                 <li><a href="#planos">Planos</a></li>
@@ -30,10 +33,12 @@
     <section class="hero">
         <div class="hero-content">
             <h1 class="hero-title">Sua Nova Família de Jogos</h1>
-            <h2 class="hero-subtitle">705 jogos disponíveis e contando!</h2>
+            <h2 class="hero-subtitle">
+                <div id="total-games">-</div>
+                jogos disponíveis e contando!
+            </h2>
             <p class="hero-description">
-                Acesso ilimitado a uma biblioteca crescente de jogos Steam por um preço fixo mensal. 
-                Atualizado em 08/08/2025.
+                Acesso ilimitado a uma biblioteca crescente de jogos Steam por um preço fixo mensal.
             </p>
             <a href="#planos" class="cta-button">Conheça os Planos</a>
         </div>
@@ -103,8 +108,10 @@
             </table>
         </div>
         <div class="pricing-info">
-            <p><strong>Reinvestimento:</strong> A maior parte dos valores arrecadados é reinvestida na compra de novos jogos para a biblioteca, beneficiando todos os membros.</p>
-            <p><strong>Ajustes de Preço:</strong> Os preços foram ajustados em 11/07/2025 com base no valor médio de lançamento de jogos (R$ 150,00 - R$ 499,00) e podem ser alterados no futuro com aviso prévio.</p>
+            <p><strong>Reinvestimento:</strong> A maior parte dos valores arrecadados é reinvestida na compra de novos
+                jogos para a biblioteca, beneficiando todos os membros.</p>
+            <p><strong>Ajustes de Preço:</strong> Os preços foram ajustados em 11/07/2025 com base no valor médio de
+                lançamento de jogos (R$ 150,00 - R$ 499,00) e podem ser alterados no futuro com aviso prévio.</p>
         </div>
     </section>
 
@@ -120,7 +127,7 @@
                     <li>Respeite outros jogadores que estejam usando um jogo</li>
                 </ul>
             </div>
-            
+
             <div class="rules-section">
                 <h3>🤝 Conflitos de Uso</h3>
                 <ul class="conflict-list">
@@ -237,7 +244,8 @@
     <!-- Footer -->
     <footer class="footer">
         <p>&copy; 2025 Sora's Pass. Todos os direitos reservados.</p>
-        <p class="update-info">Última atualização: 08/08/2025 - 705 jogos disponíveis</p>
     </footer>
 </body>
+<script src="assets/js/biblioteca.js"></script>
+
 </html>
