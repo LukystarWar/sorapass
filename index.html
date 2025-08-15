@@ -10,6 +10,39 @@
     <link rel="stylesheet" href="assets/css/index.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
+<script>
+    // Script simples para atualizar contador de jogos
+    async function loadGameCount() {
+        const el = document.getElementById('total-games');
+        if (!el) return;
+
+        try {
+            const res = await fetch('/api/test-setup');
+            const data = await res.json();
+            const count = data?.database?.gameCount || 0;
+
+            if (count > 0) {
+                // Animação de contagem
+                let current = 0;
+                const timer = setInterval(() => {
+                    current += Math.ceil(count / 20);
+                    if (current >= count) {
+                        el.textContent = count.toLocaleString('pt-BR');
+                        clearInterval(timer);
+                    } else {
+                        el.textContent = current.toLocaleString('pt-BR');
+                    }
+                }, 50);
+            } else {
+                el.textContent = '700+';
+            }
+        } catch (e) {
+            el.textContent = '700+';
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', loadGameCount);
+</script>
 
 <body>
     <!-- Navigation -->
@@ -20,9 +53,9 @@
             </button>
             <div class="logo">Sora's Pass</div>
             <ul class="nav-links">
+                <li><a href="biblioteca.html">Biblioteca</a></li>
                 <li><a href="#sobre">Sobre</a></li>
                 <li><a href="#planos">Planos</a></li>
-                <li><a href="biblioteca.html">Biblioteca</a></li>
                 <li><a href="#regras">Regras</a></li>
                 <li><a href="#contato">Contato</a></li>
             </ul>
