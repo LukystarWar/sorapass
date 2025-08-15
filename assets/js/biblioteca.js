@@ -9,6 +9,15 @@ let isLoading = false;
 // Elementos DOM (com proteção contra null)
 let gamesGrid, searchInput, yearFilter, sortFilter, totalGamesEl, loadMoreSection, loadMoreBtn, statusMessage;
 
+// Navbar Responsiva
+function toggleMenu() {
+    const navLinks = document.querySelector('.nav-links');
+    const menuToggle = document.querySelector('.menu-toggle');
+    
+    navLinks.classList.toggle('active');
+    menuToggle.classList.toggle('active');
+}
+
 // Inicialização
 async function init() {
     try {
@@ -102,15 +111,15 @@ function setupEventListeners() {
     if (searchInput) {
         searchInput.addEventListener('input', debounce(applyFilters, 300));
     }
-    
+
     if (yearFilter) {
         yearFilter.addEventListener('change', applyFilters);
     }
-    
+
     if (sortFilter) {
         sortFilter.addEventListener('change', applyFilters);
     }
-    
+
     if (loadMoreBtn) {
         loadMoreBtn.addEventListener('click', loadMoreGames);
     }
@@ -124,25 +133,25 @@ function applyFilters() {
     }
 
     console.log('🔍 Aplicando filtros...');
-    
+
     let games = [...allGames];
-    
+
     // Filtro de busca (com proteção)
     const searchTerm = searchInput?.value?.toLowerCase().trim() || '';
     if (searchTerm) {
-        games = games.filter(game => 
+        games = games.filter(game =>
             (game.name && game.name.toLowerCase().includes(searchTerm)) ||
             (game.developer && game.developer.toLowerCase().includes(searchTerm)) ||
             (game.publisher && game.publisher.toLowerCase().includes(searchTerm))
         );
     }
-    
+
     // Filtro de ano (com proteção)
     const selectedYear = yearFilter?.value || '';
     if (selectedYear) {
         games = games.filter(game => game.release_year == selectedYear);
     }
-    
+
     // Ordenação (com proteção)
     const sortBy = sortFilter?.value || 'name';
     games.sort((a, b) => {
@@ -157,43 +166,43 @@ function applyFilters() {
                 return (a.name || '').localeCompare(b.name || '');
         }
     });
-    
+
     filteredGames = games;
-    
+
     // Resetar exibição
     currentPage = 0;
     displayedGames = [];
     if (gamesGrid) {
         gamesGrid.innerHTML = '';
     }
-    
+
     // Atualizar contador (com proteção)
     if (totalGamesEl) {
         totalGamesEl.textContent = allGames.length.toLocaleString();
     }
-    
+
     // Carregar primeira página
     loadMoreGames();
-    
+
     console.log(`✅ Filtros aplicados: ${filteredGames.length} jogos de ${allGames.length} total`);
 }
 
 // Carregar mais jogos
 function loadMoreGames() {
     if (isLoading || !filteredGames.length) return;
-    
+
     isLoading = true;
-    
+
     if (loadMoreBtn) {
         loadMoreBtn.disabled = true;
         loadMoreBtn.textContent = 'Carregando...';
     }
-    
+
     setTimeout(() => {
         const startIndex = currentPage * GAMES_PER_PAGE;
         const endIndex = startIndex + GAMES_PER_PAGE;
         const newGames = filteredGames.slice(startIndex, endIndex);
-        
+
         displayedGames.push(...newGames);
         renderGames(newGames);
         currentPage++;
@@ -239,8 +248,7 @@ function createGameCard(game) {
                 src="${imageUrl}" 
                 alt="${game.name || 'Jogo'}"
                 loading="lazy"
-                onerror="this.parentElement.innerHTML='<div class=\\"game-image-placeholder\\">🎮</div>'"
-            />
+                onerror="this.parentElement.innerHTML='<div class=\\"game-image-placeholder\\">🎮</div>
         </div>
         <div class="game-info">
             <h3 class="game-title">${game.name || 'Nome indisponível'}</h3>
@@ -260,15 +268,15 @@ function openSteamStore(appId) {
 // Mostrar/esconder status
 function showStatus(message, isError = false) {
     if (!statusMessage) return;
-    
+
     statusMessage.textContent = message;
     statusMessage.className = `status-message ${isError ? 'error' : ''}`;
     statusMessage.style.display = 'block';
-    
+
     if (gamesGrid) {
         gamesGrid.style.display = 'none';
     }
-    
+
     if (loadMoreSection) {
         loadMoreSection.style.display = 'none';
     }
@@ -278,7 +286,7 @@ function hideStatus() {
     if (statusMessage) {
         statusMessage.style.display = 'none';
     }
-    
+
     if (gamesGrid) {
         gamesGrid.style.display = 'grid';
     }
