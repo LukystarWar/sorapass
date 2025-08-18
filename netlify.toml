@@ -9,7 +9,7 @@ included_files = ["node_modules/@netlify/blobs/**/*"]
 
 # Schedule function
 [functions."simple-sync"]
-schedule = "0 */6 * * *"
+schedule = "0 2 * * *"
 
 # API Routes - ordem importa!
 [[redirects]]
@@ -27,6 +27,12 @@ force = true
 [[redirects]]
 from = "/api/test-setup"
 to = "/.netlify/functions/test-setup"
+status = 200
+force = true
+
+[[redirects]]
+from = "/api/test-steam"
+to = "/.netlify/functions/test-steam"
 status = 200
 force = true
 
