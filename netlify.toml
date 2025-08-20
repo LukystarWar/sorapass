@@ -7,13 +7,13 @@ node_bundler = "esbuild"
 external_node_modules = ["@neondatabase/serverless"]
 
 # Schedule function
-[functions."simple-sync"]
+[functions."steam-sync"]
 schedule = "0 2 * * *"
 
 # API Routes - ordem importa!
 [[redirects]]
-from = "/api/simple-sync"
-to = "/.netlify/functions/simple-sync"
+from = "/api/steam-sync"
+to = "/.netlify/functions/steam-sync"
 status = 200
 force = true
 
