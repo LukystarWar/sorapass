@@ -1,9 +1,20 @@
 import type { Handler, HandlerResponse } from "@netlify/functions";
-import { getSql } from "./_db";
 
 export const handler: Handler = async (event): Promise<HandlerResponse> => {
   try {
-    const sql = getSql();
+    // Dynamic import para evitar conflito ESM/CJS
+    const { neon } = await import("@neondatabase/serverless");
+    const { DATABASE_URL } = process.env;
+    
+    if (!DATABASE_URL) {
+      return {
+        statusCode: 500,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ error: "Missing DATABASE_URL" })
+      };
+    }
+    
+    const sql = neon(DATABASE_URL);
     const page = Math.max(1, Number(event.queryStringParameters?.page || 1));
     const per = Math.min(100, Number(event.queryStringParameters?.per || 50));
     const offset = (page - 1) * per;

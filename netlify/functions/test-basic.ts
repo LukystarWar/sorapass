@@ -1,12 +1,12 @@
 import type { Handler, HandlerResponse } from "@netlify/functions";
-import { getSql } from "./_db";
 
 export const handler: Handler = async (): Promise<HandlerResponse> => {
   try {
     const key = process.env.STEAM_API_KEY;
     const ids = process.env.STEAM_IDS;
+    const { DATABASE_URL } = process.env;
     
-    if (!key || !ids) {
+    if (!key || !ids || !DATABASE_URL) {
       return {
         statusCode: 400,
         headers: { "content-type": "application/json" },
@@ -14,7 +14,9 @@ export const handler: Handler = async (): Promise<HandlerResponse> => {
       };
     }
 
-    const sql = getSql();
+    // Dynamic import para evitar conflito ESM/CJS
+    const { neon } = await import("@neondatabase/serverless");
+    const sql = neon(DATABASE_URL);
     
     // Testar conexão DB
     const test = await sql`SELECT 1 as test`;

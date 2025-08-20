@@ -1,9 +1,20 @@
 import type { Handler, HandlerResponse } from "@netlify/functions";
-import { getSql } from "./_db";
 
 export const handler: Handler = async (): Promise<HandlerResponse> => {
   try {
-    const sql = getSql();
+    // Dynamic import para evitar conflito ESM/CJS
+    const { neon } = await import("@neondatabase/serverless");
+    const { DATABASE_URL } = process.env;
+    
+    if (!DATABASE_URL) {
+      return {
+        statusCode: 500,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ error: "Missing DATABASE_URL" })
+      };
+    }
+    
+    const sql = neon(DATABASE_URL);
     
     const games = await sql`
       SELECT app_id, name, cover_url
