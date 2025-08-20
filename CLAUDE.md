@@ -72,3 +72,13 @@ Todos roteados através de `/api/*` via redirects do Netlify:
 - Bundler esbuild para funções
 - Módulo externo: `@neondatabase/serverless`
 - Função agendada: `simple-sync` executa a cada 6 horas (0 */6 * * *)
+
+## Deploy e Desenvolvimento
+
+**IMPORTANTE**: O projeto está hospedado no Netlify com deploy automático.
+
+- **URL de produção**: https://sorapass.netlify.app/
+- **Deploy automático**: Qualquer commit no repositório dispara deploy automático
+- **Para testar mudanças**: É necessário fazer `git commit` e `git push` para que as alterações sejam aplicadas
+- **Desenvolvimento local**: Requer Netlify CLI instalado (`npm install -g @netlify/cli`)
+- **Logs de funções**: Disponíveis no dashboard do Netlify durante execução

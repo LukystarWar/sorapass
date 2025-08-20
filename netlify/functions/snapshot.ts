@@ -1,6 +1,31 @@
 import type { Handler, HandlerResponse } from "@netlify/functions";
 import { getSql } from "./_db";
 
+// Função para sanitizar strings removendo caracteres problemáticos
+function sanitizeString(str: string): string {
+  if (!str) return str;
+  
+  // Remove caracteres de controle e surrogate pairs problemáticos
+  return str
+    .replace(/[\u0000-\u001F\u007F-\u009F]/g, '') // Remove caracteres de controle
+    .replace(/[\uD800-\uDFFF]/g, '') // Remove surrogate pairs problemáticos
+    .replace(/[\u200B-\u200D\uFEFF]/g, '') // Remove caracteres invisíveis
+    .trim();
+}
+
+// Função para sanitizar objeto de jogo
+function sanitizeGame(game: any) {
+  return {
+    ...game,
+    name: sanitizeString(game.name),
+    developer: game.developer ? sanitizeString(game.developer) : game.developer,
+    publisher: game.publisher ? sanitizeString(game.publisher) : game.publisher,
+    genres: Array.isArray(game.genres) 
+      ? game.genres.map((g: string) => sanitizeString(g))
+      : game.genres
+  };
+}
+
 export const handler: Handler = async (): Promise<HandlerResponse> => {
   try {
     // 1) Tentar Blobs primeiro (mais rápido)
@@ -56,7 +81,10 @@ export const handler: Handler = async (): Promise<HandlerResponse> => {
       };
     }
 
-    console.log(`✅ Retornando ${games.length} jogos do banco`);
+    // Sanitizar dados antes de retornar
+    const sanitizedGames = games.map(sanitizeGame);
+    
+    console.log(`✅ Retornando ${games.length} jogos do banco (dados sanitizados)`);
 
     return {
       statusCode: 200,
@@ -65,7 +93,7 @@ export const handler: Handler = async (): Promise<HandlerResponse> => {
         "cache-control": "public, max-age=1800, stale-while-revalidate=3600", // Cache menor para DB
         "x-data-source": "database"
       },
-      body: JSON.stringify(games)
+      body: JSON.stringify(sanitizedGames)
     };
 
   } catch (err) {

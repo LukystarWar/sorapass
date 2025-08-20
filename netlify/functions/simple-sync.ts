@@ -1,10 +1,12 @@
 import type { Handler, HandlerResponse } from "@netlify/functions";
 import { getSql } from "./_db";
 
-// Timeout para requisições Steam (15 segundos)
-const STEAM_REQUEST_TIMEOUT = 15000;
-// Delay entre requisições para evitar rate limiting
-const REQUEST_DELAY = 500;
+// Timeout para requisições Steam (10 segundos)
+const STEAM_REQUEST_TIMEOUT = 10000;
+// Delay entre requisições
+const REQUEST_DELAY = 300;
+// Tamanho do lote para inserção
+const BATCH_SIZE = 25;
 
 // Função utilitária para delay
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -36,7 +38,7 @@ export const handler: Handler = async (event): Promise<HandlerResponse> => {
     // Verificar se é um force update
     const forceUpdate = event.queryStringParameters?.force === 'true';
     
-    console.log("🚀 Iniciando simple-sync...", forceUpdate ? "(FORCE MODE)" : "");
+    console.log("🚀 Iniciando simple-sync otimizado...", forceUpdate ? "(FORCE MODE)" : "");
     
     const key = process.env.STEAM_API_KEY;
     const idsCsv = process.env.STEAM_IDS;
@@ -52,7 +54,7 @@ export const handler: Handler = async (event): Promise<HandlerResponse> => {
 
     const sql = getSql();
     
-    // 1) Verificar se precisa fazer sync (evitar sync desnecessário)
+    // 1) Verificar se precisa fazer sync
     console.log("🔍 Verificando necessidade de sync...");
     const lastUpdate = await sql`
       SELECT MAX(updated_at) as last_update, COUNT(*) as count 
@@ -62,10 +64,14 @@ export const handler: Handler = async (event): Promise<HandlerResponse> => {
     const currentCount = lastUpdate[0]?.count || 0;
     const lastUpdateTime = lastUpdate[0]?.last_update;
     
-    // Se tem jogos e a última atualização foi há menos de 24 horas, pula (exceto se for force)
-    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    if (!forceUpdate && currentCount > 0 && lastUpdateTime && new Date(lastUpdateTime) > oneDayAgo) {
+    // Se tem jogos e a última atualização foi há menos de 6 horas, pula (exceto se for force)
+    const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000);
+    if (!forceUpdate && currentCount > 0 && lastUpdateTime && new Date(lastUpdateTime) > sixHoursAgo) {
       console.log("⏭️ Sync desnecessário - atualização recente");
+      
+      // Atualizar cache se necessário
+      await updateBlobsCache(sql);
+      
       return {
         statusCode: 200,
         headers: { "content-type": "application/json" },
@@ -74,7 +80,7 @@ export const handler: Handler = async (event): Promise<HandlerResponse> => {
           method: "skip_recent_update",
           currentCount,
           lastUpdate: lastUpdateTime,
-          message: "Sync pulado - última atualização há menos de 24h (use ?force=true para forçar)"
+          message: "Sync pulado - última atualização há menos de 6h (use ?force=true para forçar)"
         })
       };
     }
@@ -86,7 +92,7 @@ export const handler: Handler = async (event): Promise<HandlerResponse> => {
     console.log("🗑️ Limpando banco de dados...");
     await sql`DELETE FROM games`;
     
-    // 2) Buscar jogos do Steam com controle de rate limiting
+    // 2) Buscar jogos do Steam de forma otimizada
     console.log("🎮 Buscando jogos do Steam...");
     const steamIds = idsCsv.split(",").map(s => s.trim()).filter(Boolean);
     const allGames = new Map();
@@ -126,7 +132,7 @@ export const handler: Handler = async (event): Promise<HandlerResponse> => {
           }
         }
         
-        // Delay entre requisições para evitar rate limiting
+        // Delay menor entre requisições
         if (i < steamIds.length - 1) {
           await delay(REQUEST_DELAY);
         }
@@ -134,11 +140,7 @@ export const handler: Handler = async (event): Promise<HandlerResponse> => {
       } catch (error) {
         console.error(`💥 Erro ao buscar Steam ID ${steamId}:`, error);
         failedRequests++;
-        
-        // Se é timeout ou abort, aguarda um pouco mais
-        if (error instanceof Error && (error.name === 'AbortError' || error.message.includes('timeout'))) {
-          await delay(REQUEST_DELAY * 2);
-        }
+        await delay(REQUEST_DELAY);
       }
     }
     
@@ -155,11 +157,10 @@ export const handler: Handler = async (event): Promise<HandlerResponse> => {
       };
     }
     
-    // 3) Inserir jogos em lotes para melhor performance
+    // 3) Inserir jogos em lotes pequenos para melhor performance
     console.log(`📥 Inserindo ${allGames.size} jogos únicos no banco...`);
     let inserted = 0;
     let insertErrors = 0;
-    const BATCH_SIZE = 50;
     
     const gamesArray = Array.from(allGames.values());
     
@@ -167,40 +168,50 @@ export const handler: Handler = async (event): Promise<HandlerResponse> => {
       const batch = gamesArray.slice(i, i + BATCH_SIZE);
       
       try {
-        // Inserção em lote usando transação
-        await sql.begin(async (tx) => {
-          for (const game of batch) {
-            try {
-              await tx`
-                INSERT INTO games (app_id, name, cover_url, last_seen_at, updated_at)
-                VALUES (
-                  ${game.appid}, 
-                  ${game.name || `App ${game.appid}`}, 
-                  ${'https://cdn.cloudflare.steamstatic.com/steam/apps/' + game.appid + '/header.jpg'}, 
-                  NOW(), 
-                  NOW()
-                )
-                ON CONFLICT (app_id) DO UPDATE SET
-                  name = EXCLUDED.name,
-                  cover_url = EXCLUDED.cover_url,
-                  last_seen_at = NOW(),
-                  updated_at = NOW()
-              `;
-              inserted++;
-            } catch (gameError) {
-              console.warn(`⚠️ Erro inserindo jogo ${game.appid}:`, gameError);
-              insertErrors++;
-            }
+        // Inserção em lote simples
+        for (const game of batch) {
+          try {
+            // Sanitizar nome do jogo antes da inserção
+            const gameName = sanitizeString(game.name || `App ${game.appid}`);
+            
+            await sql`
+              INSERT INTO games (app_id, name, cover_url, last_seen_at, updated_at)
+              VALUES (
+                ${game.appid}, 
+                ${gameName}, 
+                ${'https://cdn.cloudflare.steamstatic.com/steam/apps/' + game.appid + '/header.jpg'}, 
+                NOW(), 
+                NOW()
+              )
+              ON CONFLICT (app_id) DO UPDATE SET
+                name = EXCLUDED.name,
+                cover_url = EXCLUDED.cover_url,
+                last_seen_at = NOW(),
+                updated_at = NOW()
+            `;
+            inserted++;
+          } catch (gameError) {
+            console.warn(`⚠️ Erro inserindo jogo ${game.appid}:`, gameError);
+            insertErrors++;
           }
-        });
+        }
         
-        console.log(`✅ Lote ${Math.floor(i / BATCH_SIZE) + 1} inserido (${batch.length} jogos)`);
+        console.log(`✅ Lote ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(gamesArray.length / BATCH_SIZE)} inserido (${batch.length} jogos)`);
+        
+        // Pequeno delay entre lotes
+        if (i + BATCH_SIZE < gamesArray.length) {
+          await delay(100);
+        }
         
       } catch (batchError) {
         console.error(`💥 Erro no lote ${Math.floor(i / BATCH_SIZE) + 1}:`, batchError);
         insertErrors += batch.length;
       }
     }
+    
+    // 4) Atualizar cache Blobs
+    console.log("💾 Atualizando cache Blobs...");
+    await updateBlobsCache(sql);
     
     const executionTime = Date.now() - startTime;
     console.log(`🎉 Sync completo em ${executionTime}ms`);
@@ -219,7 +230,8 @@ export const handler: Handler = async (event): Promise<HandlerResponse> => {
         inserted,
         insertErrors,
         previousCount: currentCount,
-        message: `Banco atualizado: ${currentCount} → ${inserted} jogos (${insertErrors} erros)`
+        message: `Banco atualizado: ${currentCount} → ${inserted} jogos (${insertErrors} erros)`,
+        cacheUpdated: true
       })
     };
     
@@ -239,3 +251,64 @@ export const handler: Handler = async (event): Promise<HandlerResponse> => {
     };
   }
 };
+
+// Função para sanitizar strings removendo caracteres problemáticos
+function sanitizeString(str: string): string {
+  if (!str) return str;
+  
+  // Remove caracteres de controle e surrogate pairs problemáticos
+  return str
+    .replace(/[\u0000-\u001F\u007F-\u009F]/g, '') // Remove caracteres de controle
+    .replace(/[\uD800-\uDFFF]/g, '') // Remove surrogate pairs problemáticos
+    .replace(/[\u200B-\u200D\uFEFF]/g, '') // Remove caracteres invisíveis
+    .trim();
+}
+
+// Função para sanitizar objeto de jogo
+function sanitizeGame(game: any) {
+  return {
+    ...game,
+    name: sanitizeString(game.name),
+    developer: game.developer ? sanitizeString(game.developer) : game.developer,
+    publisher: game.publisher ? sanitizeString(game.publisher) : game.publisher,
+    genres: Array.isArray(game.genres) 
+      ? game.genres.map((g: string) => sanitizeString(g))
+      : game.genres
+  };
+}
+
+// Função para atualizar cache Blobs
+async function updateBlobsCache(sql: any) {
+  try {
+    const games = await sql`
+      SELECT 
+        g.app_id,
+        g.name,
+        g.cover_url,
+        g.developer,
+        g.publisher,
+        g.release_year,
+        COALESCE(
+          json_agg(gn.name) FILTER (WHERE gn.name IS NOT NULL),
+          '[]'
+        ) AS genres
+      FROM games g
+      LEFT JOIN game_genres gg ON gg.app_id = g.app_id
+      LEFT JOIN genres gn ON gn.id = gg.genre_id
+      GROUP BY g.app_id, g.name, g.cover_url, g.developer, g.publisher, g.release_year
+      ORDER BY g.name;
+    `;
+
+    if (games.length > 0) {
+      // Sanitizar dados antes de serializar
+      const sanitizedGames = games.map(sanitizeGame);
+      
+      const { getStore } = await import("@netlify/blobs");
+      const store = getStore("games");
+      await store.set("all.json", JSON.stringify(sanitizedGames));
+      console.log(`✅ Cache Blobs atualizado com ${games.length} jogos (dados sanitizados)`);
+    }
+  } catch (error) {
+    console.warn("⚠️ Erro ao atualizar cache Blobs:", error);
+  }
+}
