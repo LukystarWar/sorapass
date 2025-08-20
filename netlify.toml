@@ -25,6 +25,12 @@ status = 200
 force = true
 
 [[redirects]]
+from = "/api/quick-sync"
+to = "/.netlify/functions/quick-sync"
+status = 200
+force = true
+
+[[redirects]]
 from = "/api/test-setup"
 to = "/.netlify/functions/test-setup"
 status = 200
