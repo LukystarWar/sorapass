@@ -54,15 +54,16 @@ const sql = neon(NETLIFY_DATABASE_URL);
 Todas em `/netlify/functions/` (TypeScript):
 
 **✅ FUNÇÕES FUNCIONAIS:**
-- `working-sync.ts` - **Sync completo da Biblioteca Familiar** (722 jogos de 5 contas)
+- `family-sync.ts` - **Sync completo da Biblioteca Familiar** (722 jogos de 5 contas, agendado)
+- `steam-sync.ts` - Sync de conta única (backup/teste)
 - `snapshot.ts` - Retorna biblioteca completa para frontend
 - `games.ts` - Lista paginada de jogos  
 - `game.ts` - Detalhes de jogo individual
 - `test-basic.ts` - Teste de conectividade
 
 **🗑️ REMOVIDAS:**
-- `simple-sync.ts` (problemático - usar `working-sync.ts`)
-- `debug-sync.ts`, `test-*`, `quick-sync.ts` (desnecessárias)
+- `simple-sync.ts` (problemático ESM/CJS)
+- `debug-sync.ts`, `quick-sync.ts`, `test-setup.ts` (desnecessárias)
 
 ### Schema do Banco de Dados (Neon PostgreSQL)
 ```sql
@@ -85,7 +86,8 @@ CREATE TABLE game_genres (app_id INT, genre_id INT);
 
 ### Endpoints da API
 ```
-/api/working-sync  - Sync Biblioteca Familiar (5 contas → 722 jogos)
+/api/family-sync   - Sync Biblioteca Familiar (5 contas → 722 jogos, agendado 2h)
+/api/steam-sync    - Sync conta única (backup/teste)
 /api/snapshot      - Biblioteca completa (JSON 92KB)
 /api/games         - Lista paginada
 /api/game/:id      - Detalhes individuais
@@ -137,8 +139,8 @@ node_bundler = "esbuild"
 external_node_modules = ["@neondatabase/serverless"]
 
 # Agendamento
-[functions."working-sync"]
-schedule = "0 2 * * *"  # 2h da manhã
+[functions."family-sync"]
+schedule = "0 2 * * *"  # 2h da manhã, sync automático
 ```
 
 ## 📋 Comandos de Desenvolvimento
@@ -152,10 +154,13 @@ npm run dev          # Alias
 
 ### Testes de API
 ```bash
-# Sync completo (5 contas Steam)
-curl "https://sorapass.netlify.app/api/working-sync"
+# Sync completo (5 contas Steam → 722 jogos)
+curl "https://sorapass.netlify.app/api/family-sync"
 
-# Verificar biblioteca
+# Sync conta única (teste/backup)
+curl "https://sorapass.netlify.app/api/steam-sync"
+
+# Verificar biblioteca (92KB JSON)
 curl "https://sorapass.netlify.app/api/snapshot" | wc -c
 
 # Teste conectividade
@@ -243,3 +248,39 @@ for (const steamId of steamIds) {
 3. Cache otimizado
 4. Interface de administração
 5. Métricas de uso
+
+## 🛠️ HISTÓRICO DE PROBLEMAS RESOLVIDOS
+
+### ❌ Problema Principal: Erro 500 nas Funções
+**Causa**: Conflito ESM/CJS com import estático de `@neondatabase/serverless`
+**Sintomas**: Funções crashavam antes mesmo do try/catch
+**Solução**: Dynamic import `await import("@neondatabase/serverless")`
+
+### ❌ Problema: Variáveis de Ambiente Incorretas  
+**Causa**: Usando `DATABASE_URL` em vez de `NETLIFY_DATABASE_URL`
+**Sintomas**: Erro 400/500 "Missing env vars"
+**Solução**: Padronizar `NETLIFY_DATABASE_URL` em todas as funções
+
+### ❌ Problema: Conflito de Schema de Banco
+**Causa**: Funções criavam `steam_games` mas projeto usa `games`
+**Sintomas**: Dados não apareciam no frontend
+**Solução**: Padronizar tabela `games` com schema correto
+
+### ❌ Problema: Unicode em JSON
+**Causa**: Nomes de jogos Steam com caracteres problemáticos
+**Sintomas**: JSON malformado, erro de parsing
+**Solução**: Sanitização `.replace(/[^\x20-\x7E]/g, '').trim()`
+
+### ✅ Solução Final Implementada
+1. **family-sync.ts**: Função principal, processa 5 contas Steam
+2. **steam-sync.ts**: Função backup, processa 1 conta
+3. **Agendamento**: Sync automático às 2h da manhã
+4. **Resultado**: 928 jogos → 722 únicos na biblioteca familiar
+5. **Performance**: ~7 segundos para sync completo
+
+### 📋 Lições Aprendidas
+- **SEMPRE** usar dynamic import para módulos ESM no Netlify
+- **SEMPRE** usar variáveis `NETLIFY_*` em funções Netlify
+- **SEMPRE** verificar schema de banco antes de implementar
+- **SEMPRE** testar functions básicas antes de complexas
+- **SEMPRE** commit/push para testar no Netlify (não funciona local)

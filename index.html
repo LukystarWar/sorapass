@@ -17,9 +17,9 @@
         if (!el) return;
 
         try {
-            const res = await fetch('/api/test-setup');
+            const res = await fetch('/api/snapshot');
             const data = await res.json();
-            const count = data?.database?.gameCount || 0;
+            const count = data?.length || 0;
 
             if (count > 0) {
                 // Animação de contagem
@@ -34,10 +34,10 @@
                     }
                 }, 50);
             } else {
-                el.textContent = '700+';
+                el.textContent = '722';
             }
         } catch (e) {
-            el.textContent = '700+';
+            el.textContent = '722';
         }
     }
 

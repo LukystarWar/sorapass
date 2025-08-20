@@ -6,11 +6,17 @@ AWS_LAMBDA_JS_RUNTIME = "nodejs20.x"
 node_bundler = "esbuild"
 external_node_modules = ["@neondatabase/serverless"]
 
-# Schedule function
-[functions."steam-sync"]
+# Schedule function - sincronização automática da Biblioteca Familiar
+[functions."family-sync"]
 schedule = "0 2 * * *"
 
 # API Routes - ordem importa!
+[[redirects]]
+from = "/api/family-sync"
+to = "/.netlify/functions/family-sync"
+status = 200
+force = true
+
 [[redirects]]
 from = "/api/steam-sync"
 to = "/.netlify/functions/steam-sync"
@@ -20,12 +26,6 @@ force = true
 [[redirects]]
 from = "/api/test-basic"
 to = "/.netlify/functions/test-basic"
-status = 200
-force = true
-
-[[redirects]]
-from = "/api/working-sync"
-to = "/.netlify/functions/working-sync"
 status = 200
 force = true
 
