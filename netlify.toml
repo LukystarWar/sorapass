@@ -19,36 +19,6 @@ status = 200
 force = true
 
 [[redirects]]
-from = "/api/debug-sync"
-to = "/.netlify/functions/debug-sync"
-status = 200
-force = true
-
-[[redirects]]
-from = "/api/quick-sync"
-to = "/.netlify/functions/quick-sync"
-status = 200
-force = true
-
-[[redirects]]
-from = "/api/test-setup"
-to = "/.netlify/functions/test-setup"
-status = 200
-force = true
-
-[[redirects]]
-from = "/api/test-steam"
-to = "/.netlify/functions/test-steam"
-status = 200
-force = true
-
-[[redirects]]
-from = "/api/test-sanitization"
-to = "/.netlify/functions/test-sanitization"
-status = 200
-force = true
-
-[[redirects]]
 from = "/api/snapshot"
 to = "/.netlify/functions/snapshot"
 status = 200
