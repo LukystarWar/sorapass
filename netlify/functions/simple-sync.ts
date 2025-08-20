@@ -98,7 +98,8 @@ export const handler: Handler = async (event): Promise<HandlerResponse> => {
     console.log(`📥 Inserindo ${allGames.size} jogos...`);
     let inserted = 0;
     
-    for (const game of allGames.values()) {
+    const gamesArray = Array.from(allGames.values());
+    for (const game of gamesArray) {
       try {
         const gameName = sanitizeString(game.name || `App ${game.appid}`);
         
