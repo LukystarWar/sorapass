@@ -19,6 +19,12 @@ status = 200
 force = true
 
 [[redirects]]
+from = "/api/minimal-sync"
+to = "/.netlify/functions/minimal-sync"
+status = 200
+force = true
+
+[[redirects]]
 from = "/api/snapshot"
 to = "/.netlify/functions/snapshot"
 status = 200
