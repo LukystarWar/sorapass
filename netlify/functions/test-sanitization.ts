@@ -85,18 +85,18 @@ export const handler: Handler = async (): Promise<HandlerResponse> => {
     debug.step = "testando_snapshot";
     
     // Testar se consegue fazer snapshot sem erro
-    const testGames = await sql`
+    const gamesFromDb = await sql`
       SELECT app_id, name, cover_url 
       FROM games 
       ORDER BY name 
       LIMIT 5
     `;
     
-    debug.sampleGamesFromDb = testGames;
+    debug.sampleGamesFromDb = gamesFromDb;
     
     // Testar JSON.stringify
     try {
-      const jsonString = JSON.stringify(testGames);
+      const jsonString = JSON.stringify(gamesFromDb);
       debug.jsonStringifyTest = "SUCCESS";
       debug.jsonLength = jsonString.length;
     } catch (jsonError) {
