@@ -18,17 +18,17 @@ export const handler: Handler = async (event): Promise<HandlerResponse> => {
 
     // Dynamic import para evitar conflito ESM/CJS
     const { neon } = await import("@neondatabase/serverless");
-    const { DATABASE_URL } = process.env;
+    const { NETLIFY_DATABASE_URL } = process.env;
     
-    if (!DATABASE_URL) {
+    if (!NETLIFY_DATABASE_URL) {
       return {
         statusCode: 500,
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ error: "Missing DATABASE_URL" })
+        body: JSON.stringify({ error: "Missing NETLIFY_DATABASE_URL" })
       };
     }
     
-    const sql = neon(DATABASE_URL);
+    const sql = neon(NETLIFY_DATABASE_URL);
 
     const rows = await sql/* sql */`
       SELECT

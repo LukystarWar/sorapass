@@ -2,21 +2,19 @@ import type { Handler, HandlerResponse } from "@netlify/functions";
 
 export const handler: Handler = async (): Promise<HandlerResponse> => {
   try {
-    const key = process.env.STEAM_API_KEY;
-    const ids = process.env.STEAM_IDS;
-    const { DATABASE_URL } = process.env;
+    const { STEAM_API_KEY, STEAM_IDS, NETLIFY_DATABASE_URL } = process.env;
     
-    if (!key || !ids || !DATABASE_URL) {
+    if (!STEAM_API_KEY || !STEAM_IDS || !NETLIFY_DATABASE_URL) {
       return {
         statusCode: 400,
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ error: "Missing env vars" })
+        body: JSON.stringify({ error: "Missing env vars (STEAM_API_KEY, STEAM_IDS, NETLIFY_DATABASE_URL)" })
       };
     }
 
     // Dynamic import para evitar conflito ESM/CJS
     const { neon } = await import("@neondatabase/serverless");
-    const sql = neon(DATABASE_URL);
+    const sql = neon(NETLIFY_DATABASE_URL);
     
     // Testar conexão DB
     const test = await sql`SELECT 1 as test`;
