@@ -117,24 +117,7 @@ export const handler: Handler = async (event): Promise<HandlerResponse> => {
       }
     }
     
-    // Atualizar cache Blobs
-    console.log("💾 Atualizando cache...");
-    try {
-      const games = await sql`
-        SELECT app_id, name, cover_url, developer, publisher, release_year
-        FROM games 
-        ORDER BY name
-      `;
-
-      if (games.length > 0) {
-        const { getStore } = await import("@netlify/blobs");
-        const store = getStore("games");
-        await store.set("all.json", JSON.stringify(games));
-        console.log(`✅ Cache atualizado com ${games.length} jogos`);
-      }
-    } catch (error) {
-      console.warn("⚠️ Erro ao atualizar cache:", error);
-    }
+    console.log("✅ Jogos inseridos no banco com sucesso");
     
     const executionTime = Date.now() - startTime;
     console.log(`🎉 Sync completo em ${executionTime}ms`);

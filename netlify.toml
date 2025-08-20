@@ -5,7 +5,6 @@ AWS_LAMBDA_JS_RUNTIME = "nodejs20.x"
 [functions]
 node_bundler = "esbuild"
 external_node_modules = ["@neondatabase/serverless"]
-included_files = ["node_modules/@netlify/blobs/**/*"]
 
 # Schedule function
 [functions."simple-sync"]
@@ -19,8 +18,8 @@ status = 200
 force = true
 
 [[redirects]]
-from = "/api/minimal-sync"
-to = "/.netlify/functions/minimal-sync"
+from = "/api/test-basic"
+to = "/.netlify/functions/test-basic"
 status = 200
 force = true
 
