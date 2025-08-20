@@ -43,6 +43,12 @@ status = 200
 force = true
 
 [[redirects]]
+from = "/api/test-sanitization"
+to = "/.netlify/functions/test-sanitization"
+status = 200
+force = true
+
+[[redirects]]
 from = "/api/snapshot"
 to = "/.netlify/functions/snapshot"
 status = 200
