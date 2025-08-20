@@ -9,7 +9,9 @@
       "Bash(npm run dev:*)",
       "Bash(npx tsc:*)",
       "Bash(git commit:*)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(mv:*)",
+      "Bash(cp:*)"
     ],
     "deny": [],
     "ask": []

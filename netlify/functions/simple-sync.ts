@@ -6,7 +6,7 @@ export const handler: Handler = async (event): Promise<HandlerResponse> => {
   
   try {
     const forceUpdate = event.queryStringParameters?.force === 'true';
-    console.log("🚀 Iniciando sync Steam...");
+    console.log("🚀 Iniciando sync Steam completo...");
     
     const key = process.env.STEAM_API_KEY;
     const idsCsv = process.env.STEAM_IDS;
@@ -46,7 +46,7 @@ export const handler: Handler = async (event): Promise<HandlerResponse> => {
     console.log("🗑️ Limpando banco...");
     await sql`DELETE FROM games`;
     
-    console.log("🎮 Buscando jogos do Steam...");
+    console.log("🎮 Buscando jogos de todas as contas Steam...");
     const steamIds = idsCsv.split(",").map(s => s.trim()).filter(Boolean);
     const allGames = new Map();
     
@@ -88,13 +88,12 @@ export const handler: Handler = async (event): Promise<HandlerResponse> => {
       };
     }
     
-    console.log(`📥 Inserindo ${allGames.size} jogos...`);
+    console.log(`📥 Inserindo ${allGames.size} jogos únicos...`);
     let inserted = 0;
     
     const gamesArray = Array.from(allGames.values());
     for (const game of gamesArray) {
       try {
-        // Sanitização simples: remove caracteres não-ASCII
         const gameName = (game.name || `App ${game.appid}`).replace(/[^\x20-\x7E]/g, '').trim();
         
         await sql`
@@ -146,10 +145,11 @@ export const handler: Handler = async (event): Promise<HandlerResponse> => {
       body: JSON.stringify({
         success: true,
         executionTimeMs: executionTime,
+        steamAccounts: steamIds.length,
         uniqueGames: allGames.size,
         inserted,
         previousCount: currentCount,
-        message: `Sync completo: ${currentCount} → ${inserted} jogos`
+        message: `Sync completo: ${currentCount} → ${inserted} jogos de ${steamIds.length} contas Steam`
       })
     };
     
