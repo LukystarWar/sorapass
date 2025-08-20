@@ -1,10 +1,10 @@
 import type { Handler, HandlerResponse } from "@netlify/functions";
 import { getSql } from "./_db";
 
-// Timeout para requisições Steam (30 segundos)
-const STEAM_REQUEST_TIMEOUT = 30000;
+// Timeout para requisições Steam (15 segundos)
+const STEAM_REQUEST_TIMEOUT = 15000;
 // Delay entre requisições para evitar rate limiting
-const REQUEST_DELAY = 1000;
+const REQUEST_DELAY = 500;
 
 // Função utilitária para delay
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -159,7 +159,7 @@ export const handler: Handler = async (event): Promise<HandlerResponse> => {
     console.log(`📥 Inserindo ${allGames.size} jogos únicos no banco...`);
     let inserted = 0;
     let insertErrors = 0;
-    const BATCH_SIZE = 100;
+    const BATCH_SIZE = 50;
     
     const gamesArray = Array.from(allGames.values());
     
