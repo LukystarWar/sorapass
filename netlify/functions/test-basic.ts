@@ -27,8 +27,8 @@ export const handler: Handler = async (): Promise<HandlerResponse> => {
     }
     
     // Buscar apenas da primeira conta Steam
-    const firstId = ids.split(",")[0]?.trim();
-    const url = `https://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/?key=${key}&steamid=${firstId}&include_appinfo=1&format=json`;
+    const firstId = STEAM_IDS.split(",")[0]?.trim();
+    const url = `https://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/?key=${STEAM_API_KEY}&steamid=${firstId}&include_appinfo=1&format=json`;
     
     const res = await fetch(url);
     if (!res.ok) {
