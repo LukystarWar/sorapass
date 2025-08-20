@@ -62,27 +62,25 @@ export const handler: Handler = async (): Promise<HandlerResponse> => {
       };
     }
 
-    // (Opcional) Criar tabela e upsert simplificado
-    await sql`
-      create table if not exists steam_games (
-        appid integer primary key,
-        name text not null,
-        playtime_forever integer not null default 0,
-        img_icon_url text,
-        img_logo_url text
-      )
-    `;
+    // Limpar tabela existente
+    await sql`DELETE FROM games`;
 
-    // Inserção em lote (simples e segura)
+    // Inserção em lote usando a tabela games do projeto
     for (const g of games) {
       await sql`
-        insert into steam_games (appid, name, playtime_forever, img_icon_url, img_logo_url)
-        values (${g.appid}, ${g.name}, ${g.playtime_forever}, ${g.img_icon_url}, ${g.img_logo_url})
-        on conflict (appid) do update
-          set name = excluded.name,
-              playtime_forever = excluded.playtime_forever,
-              img_icon_url = excluded.img_icon_url,
-              img_logo_url = excluded.img_logo_url
+        INSERT INTO games (app_id, name, cover_url, last_seen_at, updated_at)
+        VALUES (
+          ${g.appid}, 
+          ${g.name || `App ${g.appid}`}, 
+          ${`https://cdn.cloudflare.steamstatic.com/steam/apps/${g.appid}/header.jpg`}, 
+          NOW(), 
+          NOW()
+        )
+        ON CONFLICT (app_id) DO UPDATE SET
+          name = EXCLUDED.name,
+          cover_url = EXCLUDED.cover_url,
+          last_seen_at = NOW(),
+          updated_at = NOW()
       `;
     }
 
