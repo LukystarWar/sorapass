@@ -1,17 +1,6 @@
 import type { Handler, HandlerResponse } from "@netlify/functions";
 import { getSql } from "./_db";
 
-// Função para sanitizar strings removendo caracteres problemáticos
-function sanitizeString(str: string): string {
-  if (!str) return str;
-  
-  return str
-    .replace(/[\u0000-\u001F\u007F-\u009F]/g, '')
-    .replace(/[\uD800-\uDFFF]/g, '')
-    .replace(/[\u200B-\u200D\uFEFF]/g, '')
-    .trim();
-}
-
 export const handler: Handler = async (event): Promise<HandlerResponse> => {
   const startTime = Date.now();
   
@@ -37,7 +26,7 @@ export const handler: Handler = async (event): Promise<HandlerResponse> => {
     const currentCount = Number(lastUpdate[0]?.count || 0);
     const lastUpdateTime = lastUpdate[0]?.last_update;
     
-    // Só faz sync se for force ou se não há jogos
+    // Só faz sync se for force ou se não há jogos ou se passou mais de 6 horas
     if (!forceUpdate && currentCount > 0 && lastUpdateTime) {
       const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000);
       if (new Date(lastUpdateTime) > sixHoursAgo) {
@@ -65,8 +54,12 @@ export const handler: Handler = async (event): Promise<HandlerResponse> => {
       try {
         const url = `https://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/?key=${key}&steamid=${steamId}&include_appinfo=1&format=json`;
         
+        console.log(`📡 Buscando Steam ID ${steamId}...`);
         const res = await fetch(url);
-        if (!res.ok) continue;
+        if (!res.ok) {
+          console.error(`❌ Steam API erro ${res.status} para ID ${steamId}`);
+          continue;
+        }
         
         const json = await res.json();
         const games = json?.response?.games || [];
@@ -101,7 +94,8 @@ export const handler: Handler = async (event): Promise<HandlerResponse> => {
     const gamesArray = Array.from(allGames.values());
     for (const game of gamesArray) {
       try {
-        const gameName = sanitizeString(game.name || `App ${game.appid}`);
+        // Sanitização simples: remove caracteres não-ASCII
+        const gameName = (game.name || `App ${game.appid}`).replace(/[^\x20-\x7E]/g, '').trim();
         
         await sql`
           INSERT INTO games (app_id, name, cover_url, last_seen_at, updated_at)
@@ -134,16 +128,9 @@ export const handler: Handler = async (event): Promise<HandlerResponse> => {
       `;
 
       if (games.length > 0) {
-        const sanitizedGames = games.map((game: any) => ({
-          ...game,
-          name: sanitizeString(game.name),
-          developer: game.developer ? sanitizeString(game.developer) : null,
-          publisher: game.publisher ? sanitizeString(game.publisher) : null
-        }));
-        
         const { getStore } = await import("@netlify/blobs");
         const store = getStore("games");
-        await store.set("all.json", JSON.stringify(sanitizedGames));
+        await store.set("all.json", JSON.stringify(games));
         console.log(`✅ Cache atualizado com ${games.length} jogos`);
       }
     } catch (error) {
@@ -151,6 +138,7 @@ export const handler: Handler = async (event): Promise<HandlerResponse> => {
     }
     
     const executionTime = Date.now() - startTime;
+    console.log(`🎉 Sync completo em ${executionTime}ms`);
     
     return {
       statusCode: 200,
