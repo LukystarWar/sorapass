@@ -3,7 +3,7 @@ let allGames = [];
 let filteredGames = [];
 let displayedGames = [];
 let currentPage = 0;
-const GAMES_PER_PAGE = 50;
+const GAMES_PER_PAGE = 52;
 let isLoading = false;
 
 // Elementos DOM (com proteção contra null)
